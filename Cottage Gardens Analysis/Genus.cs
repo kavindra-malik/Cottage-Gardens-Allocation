@@ -1,0 +1,26 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Cottage_Gardens_Analysis
+{
+    internal class Genus : IEquatable<Genus>
+    {
+        public Category Cat { get; set; }
+        public string Name { get; set; }
+        public Dictionary<string, GenusSize> GenusSizes { get; set; }
+        public Genus(Category cat, string name)
+        {
+            Cat = cat;
+            Name = name;
+            GenusSizes = new Dictionary<string, GenusSize>();
+        }
+
+        public bool Equals(Genus other)
+        {
+            return this.Cat.Equals(other.Cat) && string.Equals(this.Name, other.Name);
+        }
+    }
+}
