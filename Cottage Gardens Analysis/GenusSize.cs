@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    internal class GenusSize : IEquatable<GenusSize>
+    public class GenusSize : IEquatable<GenusSize>
     {
         public Genus Genus { get; set; }
         public string Name { get; set; }

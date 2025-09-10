@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    internal class Group : IEquatable<Group>
+    public class Group : IEquatable<Group>
     {
         public Category Cat { get; set; }
         public string Name { get; set; }

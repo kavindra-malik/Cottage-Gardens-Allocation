@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    internal class Metrics
+    public class Metrics
     {
         private double _DollarDelivered;
         private double _DollarSales; 

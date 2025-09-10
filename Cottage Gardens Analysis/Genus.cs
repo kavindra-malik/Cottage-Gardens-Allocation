@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    internal class Genus : IEquatable<Genus>
+    public class Genus : IEquatable<Genus>
     {
         public Category Cat { get; set; }
         public string Name { get; set; }

@@ -11,16 +11,18 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    internal class Program
+    public static class Program
     {
-        public const string storeRankingDataFile = @"C:\Users\kavin\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\2025 Home Depot Store Ranking.csv";
-        public const string storeListDataFile = @"C:\Users\kavin\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
-        public const string itemHierarchy = @"C:\Users\kavin\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\InvUDFCustom - as of 9-5-2025.csv";
-        public const string outputPath = @"C:\Users\kavin\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
-        public const string shrubsDNS = @"C:\\Users\\kavin\\OneDrive - Intellection LLC\\Current Clients\\Cottage Gardens\\Data\\DNS - Shrubs.csv";
-        public const string treesDNS = @"C:\\Users\\kavin\\OneDrive - Intellection LLC\\Current Clients\\Cottage Gardens\\Data\\DNS - Trees.csv";
+        public const string env = "test"; // "kavin"; 
 
-        public const string springSalesFileStem = @"C:\Users\kavin\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
+        public const string storeRankingDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\2025 Home Depot Store Ranking.csv";
+        public const string storeListDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
+        public const string itemHierarchy = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\InvUDFCustom - as of 9-5-2025.csv";
+        public const string outputPath = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
+        public const string shrubsDNS = @"C:\Users\"" + env + @""\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\DNS - Shrubs.csv";
+        public const string treesDNS = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\DNS - Trees.csv";
+
+        public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
 
         public static Dictionary<int, Store> Stores = new Dictionary<int, Store>();
         public static Dictionary<string, Item> Items = new Dictionary<string, Item>();
@@ -30,7 +32,7 @@ namespace Cottage_Gardens_Analysis
         // Dictionary key is to be tested as initial substring in the item number
         public static Dictionary<string, HashSet<int>> CategoryDNS = new Dictionary<string, HashSet<int>>();
 
-        public static (int year, double weight)[] History = { (2024, 0.6), (2023,0.25), ( 2022, 0.15) };
+        public static (int year, double weight)[] HistoryYears = { (2024, 0.6), (2023, 0.25), (2022, 0.15) };
 
         static void Main()
         {
@@ -39,7 +41,7 @@ namespace Cottage_Gardens_Analysis
             ReadItemHierarchy();
             ReadShrubsDNS();
             ReadTreesDNS();
-            foreach ((int year, double weight) in History) 
+            foreach ((int year, double weight) in HistoryYears) 
             {
                     ReadSalesHistory(year, weight);
             }

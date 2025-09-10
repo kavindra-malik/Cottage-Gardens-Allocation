@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    internal class Store : IEquatable<Store>
+    public class Store : IEquatable<Store>
     {
         public string Account { get; set; }
         public int Nbr { get; set; }
@@ -36,7 +36,22 @@ namespace Cottage_Gardens_Analysis
 
         public bool Equals(Store other)
         {
+            if (other == null) return false;
             return this.Nbr == other.Nbr;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Nbr, Account); ;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is Store)
+            {
+                return Equals((Store)obj);
+            }
+            return false;
         }
     }
 }
