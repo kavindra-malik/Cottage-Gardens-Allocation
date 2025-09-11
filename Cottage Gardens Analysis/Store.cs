@@ -17,10 +17,10 @@ namespace Cottage_Gardens_Analysis
         public string Group { get; set; }
         public string Buyer { get; set; }
         public string Rank { get; set; }
-        public int WeatherZone { get; set; }
+        public byte WeatherZone { get; set; }
 
 
-        public Store(int nbr, int market, string name = null, string city = null, string state = null, string group = null, string buyer = null, string rank = null, int weatherZone = 0) 
+        public Store(int nbr, int market, string name = null, string city = null, string state = null, string group = null, string buyer = null, string rank = null, byte weatherZone = 3) 
         {
             Account = "Home Depot";
             Nbr = nbr;
@@ -47,11 +47,7 @@ namespace Cottage_Gardens_Analysis
 
         public override bool Equals(object obj)
         {
-            if (obj is Store)
-            {
-                return Equals((Store)obj);
-            }
-            return false;
+            return obj is Store store && Equals(store);
         }
     }
 }

@@ -8,42 +8,24 @@ namespace Cottage_Gardens_Analysis
 {
     public class Metrics
     {
-        private double _DollarDelivered;
-        private double _DollarSales; 
-        private double _Weight;
-        public double Index { get; set; }
 
+        public int QtyDelivered { get; set; }
+        public int QtySold{ get; set; }
 
-        public Metrics(double delivered = 0, double sales = 0, double weight = 0) 
+        public double DollarDelivered { get; set; }
+        public double DollarSold { get; set; }
+
+        public double DollarDeliveredRetail { get; set; }
+        public double DollarSoldRetail { get; set; }
+
+        public Metrics(int qtyDelivered, int qtySold, double dollarsDelivered, double dollarSold, double dollarsDeliveredRetail, double dollarsSoldRetail) 
         {
-            _DollarDelivered = delivered * weight;
-            _DollarSales = sales * weight;
-            _Weight = weight;
-        }
-
-        public void Add(double delivered, double sales, double weight)
-        {
-            _DollarDelivered += delivered * weight;
-            _DollarSales += sales * weight;
-            _Weight += weight;
-        }
-
-        public double DollarDelivered
-        {
-            get { return _Weight > 0 ? _DollarDelivered / _Weight : 0; }
-        }
-
-        public double DollarSales
-        {
-            get { return _Weight > 0 ? _DollarSales / _Weight : 0; }
-        }
-
-        public double CompositeMetric 
-        { 
-            get
-            {
-                return _Weight > 0 ? (_DollarDelivered + _DollarSales) / (2 * _Weight) : 0;
-            }
+            QtyDelivered = qtyDelivered;
+            QtySold = qtySold;
+            DollarDelivered = dollarsDelivered;
+            DollarSold = dollarSold;
+            DollarDeliveredRetail = dollarsDeliveredRetail;
+            DollarSoldRetail = dollarsSoldRetail;
         }
     }
 }

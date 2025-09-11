@@ -18,6 +18,14 @@ namespace Cottage_Gardens_Analysis
             GenusSizes = new Dictionary<string, GenusSize>();
         }
 
+        public void UpdateDoNotShip(HashSet<Store> doNotShip)
+        {
+            foreach (var genusSize in GenusSizes.Values)
+            {
+                genusSize.UpdateDoNotShip(doNotShip);
+            }
+        }
+
         public bool Equals(Genus other)
         {
             return this.Cat.Equals(other.Cat) && string.Equals(this.Name, other.Name);

@@ -3,6 +3,7 @@ using Microsoft.VisualBasic;
 using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,37 +16,48 @@ namespace Cottage_Gardens_Analysis
     {
         public const string env = "test"; // "kavin"; 
 
+        public const string outputPath = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
+
         public const string storeRankingDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\2025 Home Depot Store Ranking.csv";
         public const string storeListDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
-        public const string itemHierarchy = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\InvUDFCustom - as of 9-5-2025.csv";
-        public const string outputPath = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
-        public const string shrubsDNS = @"C:\Users\"" + env + @""\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\DNS - Shrubs.csv";
-        public const string treesDNS = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\DNS - Trees.csv";
+        public const string itemMaster = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Item Master.csv";
+        public const string Dns = @"C:\Users\"" + env + @""\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Do Not Ship List.csv";
+
 
         public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
 
+        public enum SpecLevel { Category, Genus, GenusSize, Group, Item }
+
         public static Dictionary<int, Store> Stores = new Dictionary<int, Store>();
-        public static Dictionary<string, Item> Items = new Dictionary<string, Item>();
         public static Dictionary<string, Category> Categories = new Dictionary<string, Category>();
+        public static Dictionary<string, Genus> Genuses = new Dictionary<string, Genus>();
+        public static Dictionary<string, GenusSize> GenusSizes = new Dictionary<string, GenusSize>();
+        public static Dictionary<string, Group> Groups = new Dictionary<string, Group>();
+        public static Dictionary<string, Item> Items = new Dictionary<string, Item>();
+
 
         public static Dictionary<string, Dictionary<string, HashSet<int>>> DNS = new Dictionary<string, Dictionary<string, HashSet<int>>>();
         // Dictionary key is to be tested as initial substring in the item number
         public static Dictionary<string, HashSet<int>> CategoryDNS = new Dictionary<string, HashSet<int>>();
 
-        public static (int year, double weight)[] HistoryYears = { (2024, 0.6), (2023, 0.25), (2022, 0.15) };
+        public static (int year, decimal weight)[] HistoryYears = { (2024, 0.6M), (2023, 0.25M), (2022, 0.15M) };
+        public static int BenchmarkYear = 2025;
 
         static void Main()
         {
             ReadStoreRanking();
             UpdateStoreGroupAndBuyer();
-            ReadItemHierarchy();
-            ReadShrubsDNS();
-            ReadTreesDNS();
-            foreach ((int year, double weight) in HistoryYears) 
+            ReadItemMaster();
+            ReadDoNotShip();
+            for (int i = 0; i < HistoryYears.Length; i++) 
             {
-                    ReadSalesHistory(year, weight);
+                ReadSales(HistoryYears[i].year, i);
             }
-            CalcIndex();
+            ReadSales(BenchmarkYear);
+            foreach (Group group in Groups.Values)
+            {
+                group.AllocateGroupItems();
+            }
         }
 
         #region ReadStoreRanking
@@ -144,10 +156,10 @@ namespace Cottage_Gardens_Analysis
         }
         #endregion
 
-        #region ReadItemHierarchy
-        static void ReadItemHierarchy()
+        #region ReadItemMaster
+        static void ReadItemMaster()
         {
-            using (TextFieldParser csvParser = new TextFieldParser(itemHierarchy))
+            using (TextFieldParser csvParser = new TextFieldParser(itemMaster))
             {
                 csvParser.CommentTokens = new string[] { "#" };
                 csvParser.SetDelimiters(new string[] { "," });
@@ -158,8 +170,8 @@ namespace Cottage_Gardens_Analysis
                 // Skip the row with the column names
                 csvParser.ReadLine();
 
-                // 0,	 1,	               2,	    3,	      4,	       5,	        6,	     7,       8,	 9,	         10
-                // Item, Item Description, Size,    Inactive, Category,    Tag Code,    Program, Zone,    GROUP, GENUS SIZE, GENUS
+                // 0,	 1,	               2,	    3,	      4,	       5,	        6,	     7,       8,	 9,	         10,        11
+                // Item, Item Description, Size,    Inactive, Category,    Tag Code,    Program, Zone,    GROUP, GENUS SIZE, MULTIPLE,  GENUS
 
                 while (!csvParser.EndOfData)
                 {
@@ -173,11 +185,19 @@ namespace Cottage_Gardens_Analysis
                         string categoryName = fields[4].Trim();
                         string tag = fields[5].Trim();
                         string program = fields[6].Trim();
-                        byte zone = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[7]) && !byte.TryParse(fields[7], out zone)) { }
+                        byte zone = 3;
+                        if (!string.IsNullOrWhiteSpace(fields[7]) && !byte.TryParse(fields[7], out zone)) 
+                        {
+                            LogException("Active Item: " + nbr + ", Desc: " + desc + " does not have a value for Zone. Zone = 3 being used.");
+                        }
                         string groupName = fields[8].Trim();
                         string genusSizeName = fields[9].Trim();
-                        string genusName = fields[10].Trim();
+                        int multiple = 1;
+                        if (!string.IsNullOrWhiteSpace(fields[10]) && !int.TryParse(fields[10].Trim(), out multiple))
+                        {
+                            LogException("Active Item: " + nbr + ", Desc: " + desc + " does not have a value for multiple. Multiple = 1 being used.");
+                        }
+                        string genusName = fields[11].Trim();
 
                         if (!Categories.TryGetValue(categoryName, out var cat))
                         {
@@ -188,18 +208,21 @@ namespace Cottage_Gardens_Analysis
                         {
                             group = new Group(cat, groupName);
                             cat.Groups.Add(groupName, group);
+                            Groups.Add(groupName, group);
                         }
                         if (!cat.Genuses.TryGetValue(genusName, out var genus))
                         {
                             genus = new Genus(cat, genusName);
                             cat.Genuses.Add(genusName, genus);
+                            Genuses.Add(genusName, genus);
                         }
                         if (!genus.GenusSizes.TryGetValue(genusSizeName, out var genusSize))
                         {
                             genusSize = new GenusSize(genus, genusSizeName, size);
                             genus.GenusSizes.Add(genusSizeName, genusSize);
+                            GenusSizes.Add(genusSizeName, genusSize);
                         }
-                        Item item = new Item(nbr, desc, genusSize, group, tag, program, zone);
+                        Item item = new Item(nbr, desc, genusSize, group, tag, program, zone, multiple);
                         Items.Add(nbr, item);
                         genusSize.Items.Add(nbr, item);
                         group.Items.Add(nbr, item);
@@ -209,165 +232,127 @@ namespace Cottage_Gardens_Analysis
         }
         #endregion
 
-        #region ReadShrubsDNS
-        static void ReadShrubsDNS()
+        #region ReadDoNotShip
+        static void ReadDoNotShip()
         {
-            using (StreamWriter sw = new StreamWriter(Path.Combine(outputPath, "Exceptions.CSV"),true))
+            List<DoNotShipSpec> dnsSpecs = new List<DoNotShipSpec>();
+            int offset = 4;
+            using (TextFieldParser csvParser = new TextFieldParser(Dns))
             {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = true;
 
-                using (TextFieldParser csvParser = new TextFieldParser(shrubsDNS))
+                // Skip the top 3 rows
+                csvParser.ReadLine();
+                csvParser.ReadLine();
+                csvParser.ReadLine();
+
+                // Initialize Specs - 5 rows:
+                //      Category
+                //      Genus
+                //      Genus Size
+                //      Group
+                //      Item
+
+                int index = offset;
+                foreach (SpecLevel specLevel in Enum.GetValues(typeof(SpecLevel)))
                 {
-                    csvParser.CommentTokens = new string[] { "#" };
-                    csvParser.SetDelimiters(new string[] { "," });
-                    csvParser.HasFieldsEnclosedInQuotes = true;
-
-                    // Skip the top row
-                    csvParser.ReadLine();
-                    // Read and trim Genus names
-                    string[] genus = csvParser.ReadFields();
-                    for (int i = 0; i < genus.Length; i++)
+                    string[] fields = csvParser.ReadFields();
+                    for (int i = index; i < fields.Length; i++)
                     {
-                        genus[i] = genus[i].Trim().ToUpper();
-                    }
-                    // Read and trim prefix names
-                    string[] columns = csvParser.ReadFields();
-                    for (int i = 0; i < columns.Length; i++)
-                    {
-                        columns[i] = columns[i].Trim().ToUpper();
-                    }
-
-                    while (!csvParser.EndOfData)
-                    {
-                        // Read current line fields, pointer moves to the next line.
-                        string[] fields = csvParser.ReadFields();
-                        if (fields.Length > 0 && !string.IsNullOrWhiteSpace(fields[0]) && int.TryParse(fields[0], out int storeNbr))
+                        if (!string.IsNullOrWhiteSpace(fields[i]))
                         {
-                            /*
-                            string state = fields[2].Trim();
-                            if (!int.TryParse(fields[3], out int zone))
+                            dnsSpecs.Add(new DoNotShipSpec(SpecLevel.Category, fields[i].Trim()));
+                        }
+                        else
+                        {
+                            index = i;
+                            break;
+                        }
+                    }
+                }
+                // Skip headers
+                csvParser.ReadLine();
+                while (!csvParser.EndOfData)
+                {
+                    // Read current line fields, pointer moves to the next line.
+                    string[] fields = csvParser.ReadFields();
+                    if (fields.Length > 0 && !string.IsNullOrWhiteSpace(fields[0]) && int.TryParse(fields[0], out int storeNbr))
+                    {
+                        if (Stores.TryGetValue(storeNbr, out Store store))
+                        {
+                            if (byte.TryParse(fields[3], out var zone))
                             {
-                                sw.WriteLine(Path.GetFileName(shrubsDNS) + "," + DateTime.Today.ToString() + "," + fields[3] + ", Expected to be a weather zone");
-                                continue;
+                                store.WeatherZone = zone;
                             }
-                            */
-                            for (int i = 4; i < fields.Length; i++)
+                            else
                             {
-                                if (!string.IsNullOrWhiteSpace(fields[i]))
+                                LogException("Store # " + storeNbr + " : Zone value: " + fields[3] + " encountered in Do Not Ship file could not be parsed");
+                            }
+                            for (int i = offset; i < fields.Length; i++)
+                            {
+                                if (!string.IsNullOrEmpty(fields[i]) && string.Equals(fields[i].Trim(), "N", StringComparison.OrdinalIgnoreCase) && i < dnsSpecs.Count)
                                 {
-                                    string genusId = genus[i];
-                                    if (!string.IsNullOrWhiteSpace(genusId))
-                                    {
-                                        sw.WriteLine(Path.GetFileName(shrubsDNS) + "," + DateTime.Today.ToString() + ", Value in file cell " + GetExcelColumnName(i + 4) + "2 expected to be a valid genus-size. Found null");
-                                        continue;
-                                    }
-                                    string prefix = columns[i];
-                                    if (!string.IsNullOrWhiteSpace(prefix)) 
-                                    {
-                                        sw.WriteLine(Path.GetFileName(shrubsDNS) + "," + DateTime.Today.ToString() + ", Value in file column " + GetExcelColumnName(i + 4) + "3 expected to be a valid item prefix. Found null");
-                                        continue;
-                                    }
-                                    if (!DNS.TryGetValue(genusId, out var prefixDNS))
-                                    {
-                                        prefixDNS = new Dictionary<string, HashSet<int>>();
-                                        DNS.Add(genusId, prefixDNS);
-                                    }
-                                    if (!prefixDNS.TryGetValue(prefix, out var storeSet))
-                                    {
-                                        storeSet = new HashSet<int>();
-                                        prefixDNS.Add(prefix, storeSet);
-                                    }
-                                    storeSet.Add(storeNbr);
+                                    dnsSpecs[i - offset].AddStore(store);
                                 }
                             }
                         }
+                        else
+                        {
+                            LogException("Store # " + storeNbr + " encountered in Do Not Ship file not in Store Master");
+                        }
                     }
+                }
+            }
+            ProcessDnsSpecs(dnsSpecs);
+        }
+
+        static void ProcessDnsSpecs(List<DoNotShipSpec> dnsSpecs)
+        {
+            int count = dnsSpecs.Count;
+            for (int i = count - 1; i >= 0; i--)
+            {
+                switch (dnsSpecs[i].SpecificationLevel)
+                {
+                    case SpecLevel.Item:
+                        if (Items.TryGetValue(dnsSpecs[i].Id, out var item))
+                        {
+                            item.UpdateDoNotShip(dnsSpecs[i].Stores);
+                        }
+                        break;
+                    case SpecLevel.Group:
+                        if (Groups.TryGetValue(dnsSpecs[i].Id, out var group))
+                        {
+                            group.UpdateDoNotShip(dnsSpecs[i].Stores);
+                        }
+                        break;
+                    case SpecLevel.GenusSize:
+                        if (GenusSizes.TryGetValue(dnsSpecs[i].Id, out var genusSize))
+                        {
+                            genusSize.UpdateDoNotShip(dnsSpecs[i].Stores);
+                        }
+                        break;
+                    case SpecLevel.Genus:
+                        if (Genuses.TryGetValue(dnsSpecs[i].Id, out var genus))
+                        {
+                            genus.UpdateDoNotShip(dnsSpecs[i].Stores);
+                        }
+                        break;
+                    case SpecLevel.Category:
+                        if (Categories.TryGetValue(dnsSpecs[i].Id, out var category))
+                        {
+                            category.UpdateDoNotShip(dnsSpecs[i].Stores);
+                        }
+                        break;
                 }
             }
         }
         #endregion
 
-        #region ReadTreesDNS
-        static void ReadTreesDNS()
+        #region ReadSales
+        static void ReadSales(int year, int? historyIndex = null)
         {
-            using (StreamWriter sw = new StreamWriter(Path.Combine(outputPath, "Exceptions.CSV"), true))
-            {
-
-                using (TextFieldParser csvParser = new TextFieldParser(treesDNS))
-                {
-                    csvParser.CommentTokens = new string[] { "#" };
-                    csvParser.SetDelimiters(new string[] { "," });
-                    csvParser.HasFieldsEnclosedInQuotes = true;
-
-                    // Skip the top row
-                    csvParser.ReadLine();
-                    // Read and trim Genus names
-                    string[] genus = csvParser.ReadFields();
-                    for (int i = 0; i < genus.Length; i++)
-                    {
-                        genus[i] = genus[i].Trim().ToUpper();
-                    }
-                    // Read and trim prefix names
-                    string[] columns = csvParser.ReadFields();
-                    for (int i = 0; i < columns.Length; i++)
-                    {
-                        columns[i] = columns[i].Trim().ToUpper();
-                    }
-
-                    // Inventory UDF Maintenance Report	Item Description	Item Grouping
-                    while (!csvParser.EndOfData)
-                    {
-                        // Read current line fields, pointer moves to the next line.
-                        string[] fields = csvParser.ReadFields();
-                        if (fields.Length > 0 && !string.IsNullOrWhiteSpace(fields[0]) && int.TryParse(fields[0], out int storeNbr))
-                        {
-                            /*
-                            string state = fields[2].Trim();
-                            if (!int.TryParse(fields[3], out int zone))
-                            {
-                                sw.WriteLine(Path.GetFileName(shrubsDNS) + "," + DateTime.Today.ToString() + "," + fields[3] + ", Expected to be a weather zone");
-                                continue;
-                            }
-                            */
-                            for (int i = 4; i < fields.Length; i++)
-                            {
-                                if (!string.IsNullOrWhiteSpace(fields[i]))
-                                {
-                                    string genusId = genus[i];
-                                    if (!string.IsNullOrWhiteSpace(genusId))
-                                    {
-                                        sw.WriteLine(Path.GetFileName(shrubsDNS) + "," + DateTime.Today.ToString() + ", Value in file cell " + GetExcelColumnName(i + 4) + "2 expected to be a valid genus-size. Found null");
-                                        continue;
-                                    }
-                                    string prefix = columns[i];
-                                    if (!string.IsNullOrWhiteSpace(prefix))
-                                    {
-                                        sw.WriteLine(Path.GetFileName(shrubsDNS) + "," + DateTime.Today.ToString() + ", Value in file column " + GetExcelColumnName(i + 4) + "3 expected to be a valid item prefix. Found null");
-                                        continue;
-                                    }
-                                    if (!DNS.TryGetValue(genusId, out var prefixDNS))
-                                    {
-                                        prefixDNS = new Dictionary<string, HashSet<int>>();
-                                        DNS.Add(genusId, prefixDNS);
-                                    }
-                                    if (!prefixDNS.TryGetValue(prefix, out var storeSet))
-                                    {
-                                        storeSet = new HashSet<int>();
-                                        prefixDNS.Add(prefix, storeSet);
-                                    }
-                                    storeSet.Add(storeNbr);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        #endregion
-
-        #region ReadSalesHistory
-        static void ReadSalesHistory(int year, double weight)
-        {
-
             using (TextFieldParser csvParser = new TextFieldParser(SalesFilePath(year)))
             {
                 csvParser.CommentTokens = new string[] { "#" };
@@ -378,9 +363,10 @@ namespace Cottage_Gardens_Analysis
                 csvParser.ReadLine();
                 csvParser.ReadLine();
                 csvParser.ReadLine();
-
+                int lineNbr = 3;
                 while (!csvParser.EndOfData)
                 {
+                    lineNbr++;
                     // Read current line fields, pointer moves to the next line.
                     string[] fields = csvParser.ReadFields();
                     if (fields.Length > 14)
@@ -388,11 +374,11 @@ namespace Cottage_Gardens_Analysis
                         string itemCode = fields[2].Trim();
                         if (string.IsNullOrWhiteSpace(itemCode))
                         {
-                            throw new Exception("Item Code =  Null encountered");
+                            throw new Exception("Line Nbr: " + lineNbr + ", Item Code =  Null encountered");
                         }
                         if (!Items.TryGetValue(itemCode, out var item))
                         {
-                            throw new Exception("Unknown Item Code: " + itemCode);
+                            throw new Exception("Line Nbr: " + lineNbr + ", Unknown Item Code: " + itemCode);
                         }
                         int storeNbr = 0;
                         if (!string.IsNullOrWhiteSpace(fields[1]) && int.TryParse(fields[1], out storeNbr) && !string.IsNullOrWhiteSpace(itemCode))
@@ -403,60 +389,65 @@ namespace Cottage_Gardens_Analysis
                             }
                             else
                             {
-                                throw new Exception("Non-integer store nbr");
+                                throw new Exception("Line Nbr: " + lineNbr + ", Non-integer store nbr");
                             }
                         }
                         if (!Stores.TryGetValue(storeNbr, out var store))
                         {
-                            throw new Exception("Unknown store nbr: " + storeNbr);
+                            throw new Exception("Line Nbr: " + lineNbr + ", Unknown store nbr: " + storeNbr);
                         }
-                        double dollarDelivered = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[10]) && double.TryParse(fields[10], out double d))
+                        int qtyDelivered = 0;
+                        if (!string.IsNullOrWhiteSpace(fields[8]) && !int.TryParse( fields[8], out qtyDelivered))
                         {
-                            dollarDelivered = d;
+                            throw new Exception("Line Nbr: " + lineNbr + ", Non-integer Qty Del: " + fields[8]);
                         }
-                        double dollarSales = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[14]) && double.TryParse(fields[14], out d))
+
+                        double dollarsDelivered = 0;
+                        if (!string.IsNullOrWhiteSpace(fields[9]) && double.TryParse(fields[9], out dollarsDelivered))
                         {
-                            dollarSales = d;
+                            throw new Exception("Line Nbr: " + lineNbr + ", $ Del " + fields[9] + " could not be parsed.");
                         }
-                        if (!item.Group.SalesMeasures.TryGetValue(store, out var storeMetrics))
+                        double dollarsDeliveredRetail = 0;
+                        if (!string.IsNullOrWhiteSpace(fields[10]) && double.TryParse(fields[10], out dollarsDeliveredRetail))
                         {
-                            storeMetrics = new Metrics();
-                            item.Group.SalesMeasures.Add(store, storeMetrics);
+                            throw new Exception("Line Nbr: " + lineNbr + ", $ Del Retail " + fields[10] + " could not be parsed.");
                         }
-                        storeMetrics.Add(dollarDelivered, dollarSales, weight);
+
+                        int qtySold = 0;
+                        if (!string.IsNullOrWhiteSpace(fields[11]) && !int.TryParse(fields[11], out qtySold))
+                        {
+                            throw new Exception("Line Nbr: " + lineNbr + ", Non-integer Qty Sold: " + fields[11]);
+                        }
+
+                        double dollarsSold = 0;
+                        if (!string.IsNullOrWhiteSpace(fields[12]) && double.TryParse(fields[12], out dollarsSold))
+                        {
+                            throw new Exception("Line Nbr: " + lineNbr + ", $ Sold " + fields[12] + " could not be parsed.");
+                        }
+                        double dollarsSoldRetail = 0;
+                        if (!string.IsNullOrWhiteSpace(fields[10]) && double.TryParse(fields[13], out dollarsSoldRetail))
+                        {
+                            throw new Exception("Line Nbr: " + lineNbr + ", $ Sold Retail " + fields[13] + " could not be parsed.");
+                        }
+                        // excluding spurious records
+                        if (qtyDelivered >= 20 && qtySold == 0)
+                        {
+                            continue;
+                        }
+
+                        if (historyIndex.HasValue)
+                        {
+                            item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail)); 
+                        }
+                        else
+                        {
+                            item.Benchmark.Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
+                        }
                     }
                 }
             }
         }
         #endregion
-        static void CalcIndex()
-        {
-            foreach (Category category in Categories.Values)
-            {
-                foreach (Group group in category.Groups.Values.Where(g => g.SalesMeasures.Count > 0))
-                {
-                    double sum = 0;
-                    int count = 0;
-                    foreach (Metrics metrics in group.SalesMeasures.Values)
-                    {
-                        sum += metrics.CompositeMetric;
-                        count++;
-                    }
-                    sum /= count;
-                    if (sum <= 0)
-                    {
-                        throw new Exception("Encountered Sum of Composite Metrics = 0. It indicates misaligned Sales History data columns.");
-                    }
-                    foreach (Metrics metrics in group.SalesMeasures.Values)
-                    {
-                        metrics.Index = metrics.CompositeMetric / sum;
-                    }
-                }
-            }
-        }
-
 
         #region Helper methods
         private static string SalesFilePath(int year)
@@ -476,7 +467,16 @@ namespace Cottage_Gardens_Analysis
 
             return columnName;
         }
+
+        public static void LogException(string message)
+        {
+            using (StreamWriter sw = File.AppendText(Path.Combine(outputPath, "Exceptions.CSV")))
+            {
+                sw.WriteLine(message);
+            }
+        }
         #endregion
+
 
     }
 
