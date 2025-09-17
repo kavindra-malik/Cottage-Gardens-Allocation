@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,8 +23,9 @@ namespace Cottage_Gardens_Analysis
         public Dictionary<Store, Metrics> Benchmark { get; set; }
         public HashSet<Store> DoNotShip { get; set; }
         public Dictionary<Store, int> Allocation { get; set; }
-        private int _totalQty;
 
+        private int _totalQty;
+        private double _historicalSales;
 
 
         // Item, Item Description, Size,    Inactive, Category,    Tag Code,    Program, Zone,    GROUP, GENUS SIZE, GENUS
@@ -40,6 +42,7 @@ namespace Cottage_Gardens_Analysis
             History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             DoNotShip = null;
             _totalQty = -1;
+            _historicalSales = -1;
         }
 
         public void UpdateDoNotShip(HashSet<Store> doNotShip)
@@ -53,7 +56,7 @@ namespace Cottage_Gardens_Analysis
         public void Allocate(Dictionary<Store, double> index)
         {
             Dictionary<Store, double> storeIndex = index;
-            var dns = from x in index.Keys where DoNotShip.Contains(x) || x.WeatherZone >= Zone select x;
+            var dns = from x in index.Keys where DoNotShip.Contains(x) select x;
             if (dns.Any())
             {
                 storeIndex = new Dictionary<Store, double>();
@@ -110,6 +113,31 @@ namespace Cottage_Gardens_Analysis
                         if (!DoNotShip.Contains(kvp.Key) && kvp.Key.WeatherZone >= Zone)
                         {
                             _totalQty += kvp.Value.QtyDelivered;
+                        }
+                    }
+                    _totalQty = Multiple * (int)Math.Round((double)_totalQty / Multiple, 0);
+                }
+                return _totalQty;
+            }
+        }
+
+        public double HistoricalSales
+        {
+            get
+            {
+                if (_historicalSales < 0)
+                {
+                    _historicalSales = 0;
+                    for (int i = 0; i < Program.HistoryYears.Length; i++)
+                    {
+                        if (History[i] != null)
+                        {
+                            double sum = 0;
+                            foreach (Metrics metrics in History[i].Values)
+                            {
+                                sum += metrics.DollarSold;
+                            }
+                            _historicalSales += sum * (double) Program.HistoryYears[i].weight;
                         }
                     }
                     _totalQty = Multiple * (int)Math.Round((double)_totalQty / Multiple, 0);

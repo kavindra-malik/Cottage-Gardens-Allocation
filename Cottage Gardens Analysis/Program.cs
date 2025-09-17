@@ -433,7 +433,10 @@ namespace Cottage_Gardens_Analysis
 
                         if (historyIndex.HasValue)
                         {
-                            item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail)); 
+                            if (!item.DoNotShip.Contains(store) && item.Zone <= store.WeatherZone)
+                            {
+                                item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
+                            }
                         }
                         else
                         {
