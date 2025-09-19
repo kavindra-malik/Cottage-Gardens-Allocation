@@ -24,9 +24,8 @@ namespace Cottage_Gardens_Analysis
         public HashSet<Store> DoNotShip { get; set; }
         public Dictionary<Store, int> Allocation { get; set; }
 
-        private int _totalQty;
-        private double _totalSold;
-
+        private int? _totalQty;
+        private double?[] _totalSold = new double?[Program.HistoryYears.Length];
 
         // Item, Item Description, Size,    Inactive, Category,    Tag Code,    Program, Zone,    GROUP, GENUS SIZE, GENUS
         public Item(string nbr, string desc, GenusSize genusSize, Group group, string tag, string program, byte zone, int multiple)
@@ -41,8 +40,6 @@ namespace Cottage_Gardens_Analysis
             Multiple = multiple;
             History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             DoNotShip = null;
-            _totalQty = -1;
-            _totalSold = 0;
         }
 
         public void UpdateDoNotShip(HashSet<Store> doNotShip)
@@ -53,17 +50,19 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public void Allocate(Dictionary<Store, double> index)
+        public void Allocate(AllocationIndex index)
         {
-            Dictionary<Store, double> storeIndex = index;
-            var dns = from x in index.Keys where DoNotShip.Contains(x) select x;
+            // Store-specific allocation index
+            HashSet<Store> targetSet = TargetStoreSet;
+            Dictionary<Store, double> storeIndex = index.Index.Where(x => targetSet.Contains(x.Key)).ToDictionary(x => x.Key, x => x.Value);
+            var dns = from x in index.Index.Keys where targetSet.Contains(x) && DoNotShip.Contains(x) select x;
             if (dns.Any())
             {
                 storeIndex = new Dictionary<Store, double>();
                 double sum = 0;
-                foreach (KeyValuePair<Store, double> kvp in index)
+                foreach (KeyValuePair<Store, double> kvp in index.Index)
                 {
-                    if (!DoNotShip.Contains(kvp.Key) && kvp.Key.WeatherZone >= Zone)
+                    if (!DoNotShip.Contains(kvp.Key))
                     {
                         storeIndex.Add(kvp.Key, kvp.Value);
                         sum += kvp.Value;
@@ -74,6 +73,7 @@ namespace Cottage_Gardens_Analysis
                     storeIndex[store] /= sum;
                 }
             }
+            // Allocate 
             Allocation = new Dictionary<Store, int>();
             int totalQty = TotalQty;
             List<StoreResidual> residuals = new List<StoreResidual>();
@@ -101,49 +101,56 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
+        public HashSet<Store> TargetStoreSet
+        {
+            get
+            {
+                HashSet<Store> set = new HashSet<Store>();
+                foreach (var kvp in Benchmark)
+                {
+                    if (!DoNotShip.Contains(kvp.Key) && kvp.Value.Ignore)
+                    {
+                        set .Add(kvp.Key);
+                    }
+                }
+                return set;
+            }
+        }
+
         public int TotalQty
         {
             get
             {
-                if (_totalQty < 0)
+                if (_totalQty == null)
                 {
                     _totalQty = 0;
                     foreach (KeyValuePair<Store, Metrics> kvp in Benchmark)
                     {
-                        if (!DoNotShip.Contains(kvp.Key) && kvp.Key.WeatherZone >= Zone)
+                        if (!DoNotShip.Contains(kvp.Key))
                         {
                             _totalQty += kvp.Value.QtyDelivered;
                         }
                     }
-                    _totalQty = Multiple * (int)Math.Round((double)_totalQty / Multiple, 0);
                 }
-                return _totalQty;
+                return _totalQty.Value;
             }
         }
 
-        public double TotalSold
+        public double TotalSold(int index)
         {
-            get
+
+            if (_totalSold[index] == null)
             {
-                if (_totalSold < 0)
+                if (History[index] != null)
                 {
-                    _totalSold = 0;
-                    decimal sumWeight = 0;
-                    for (int i = 0; i < History.Length; i++)
+                    _totalSold[index] = 0;
+                    foreach (Metrics metrics in History[index].Values)
                     {
-                        foreach (Metrics metrics in History[i].Values)
-                        {
-                            _totalSold += (double) Program.HistoryYears[i].weight * metrics.DollarSold;
-                        }
-                        sumWeight += Program.HistoryYears[i].weight;
-                    }
-                    if (sumWeight < 1)
-                    {
-                        _totalSold /= (double) sumWeight;
+                        _totalSold[index] += metrics.DollarSold;
                     }
                 }
-                return _totalSold;
             }
+            return _totalSold[index] == null ? 0 : _totalSold[index].Value;
         }
 
         public override int GetHashCode()

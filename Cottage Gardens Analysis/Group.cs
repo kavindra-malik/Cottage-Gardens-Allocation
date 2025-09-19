@@ -10,15 +10,14 @@ namespace Cottage_Gardens_Analysis
     {
         public Category Cat { get; set; }
         public string Name { get; set; }
+        public bool HasSales { get; set; }
         public Dictionary<string, Item> Items { get; set; }
-        public Dictionary<Store, Metrics>[] History { get; set; }
-        public Dictionary<Store, double> Weight { get; set; }
-        public Dictionary<Store, Metrics> Benchmark { get; set; }
 
         public Group(Category cat, string name)
         {
             Cat = cat;
             Name = name;
+            HasSales = false;
             Items = new Dictionary<string, Item>();
         }
 
@@ -31,163 +30,91 @@ namespace Cottage_Gardens_Analysis
         }
 
         #region
-        public void CalculateIndex()
+        public void AllocateGroupItems()
         {
-            Dictionary<Store, DoNotShipItems> dnsItems = new Dictionary<Store, DoNotShipItems>();
-            Dictionary<Store, double> allocation = new Dictionary<Store, double>();
-            HashSet<Store> storeSet = new HashSet<Store>();
+            Dictionary<Store, DoNotShipItems> dnsItemsByStore = new Dictionary<Store, DoNotShipItems>();
 
             foreach (var item in Items.Values)
             {
-                foreach (Dictionary<Store, Metrics> history in  item.History)
-                {
-                    storeSet.UnionWith(history.Keys);
-                }
                 foreach (Store store in item.DoNotShip)
                 {
-                    if (!dnsItems.TryGetValue(store, out  var doNotShip))
+                    if (!dnsItemsByStore.TryGetValue(store, out  var doNotShip))
                     {
                         doNotShip = new DoNotShipItems();
-                        dnsItems.Add(store, doNotShip);
+                        dnsItemsByStore.Add(store, doNotShip);
                     }
-                    doNotShip.Items.Add(item);
-                    doNotShip.SalesWeight += item.TotalSold;
+                    doNotShip.AddItem(item);
                 }
             }
-
-            int dnsItemsCount = dnsItems.Count;
-            while (dnsItemsCount > 0)
+            AllocationIndex index = GetCompositeIndex(dnsItemsByStore);
+            foreach (var item in Items.Values.Where(x => x.TotalQty > 0))
             {
-                Store mostRestrictedStore = dnsItems.First().Key;
-                double sales = dnsItems[mostRestrictedStore].SalesWeight;
-                foreach (var kvp in dnsItems) 
-                { 
-                    if (kvp.Value.SalesWeight > sales)
-                    {
-                        mostRestrictedStore = kvp.Key;
-                    }
-                }
-
-
-
+                item.Allocate(index);
             }
 
         }
         #endregion
 
-        public void AllocateGroupItems()
+
+
+        private AllocationIndex GetCompositeIndex(Dictionary<Store, DoNotShipItems> dnsItemsByStore)
         {
-            Dictionary<Store, double> basis = new Dictionary<Store, double>();
-            Dictionary<Store, decimal> cumulativeWeight = new Dictionary<Store, decimal>();
-            Dictionary<Store, double> index = new Dictionary<Store, double>();
+            AllocationIndex index0 = AllocateYear(0, dnsItemsByStore);
+            AllocationIndex index1 = AllocateYear(1, dnsItemsByStore);
+            AllocationIndex index2 = AllocateYear(2, dnsItemsByStore);
+            return new AllocationIndex(index0, new AllocationIndex(index1, index2));
+        }
 
-
-
-            foreach (var item in Items.Values)
+        public AllocationIndex AllocateYear(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore)
+        {
+            if (dnsItemsByStore.Count > 0)
             {
-                for (int i = 0; i < Program.HistoryYears.Length; i++)
+                Dictionary<Store, double> preallocatedIndex = new Dictionary<Store, double>();
+                double totalIndex = 1;
+                List<Store> mostConstrainedStores = GetMostConstrainedStores(index, dnsItemsByStore, preallocatedIndex);
+                while (mostConstrainedStores != null && mostConstrainedStores.Count > 0)
                 {
-                    if (item.History[i] != null)
+                    AllocationIndex allocationIndex = new AllocationIndex(index, this, dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items, preallocatedIndex, totalIndex);
+                    foreach (Store store in mostConstrainedStores)
                     {
-                        foreach (KeyValuePair<Store, Metrics> kvp in item.History[i].Where(h => !h.Value.Ignore))
+                        if (allocationIndex.Index.TryGetValue(store, out double value))
                         {
-                            if (History[i] == null || !History[i].TryGetValue(kvp.Key, out Metrics storeMetrics))
-                            {
-                                storeMetrics = new Metrics(kvp.Value);
-                                History[i][kvp.Key] = storeMetrics;
-                            }
-                            else
-                            {
-                                storeMetrics.Add(kvp.Value);
-                            }
-
-
-
-                            if (!basis.ContainsKey(kvp.Key))
-                            {
-                                basis.Add(kvp.Key, (kvp.Value.DollarDelivered + kvp.Value.DollarSold) * (double)Program.HistoryYears[i].weight);
-                                cumulativeWeight.Add(kvp.Key, Program.HistoryYears[i].weight);
-                            }
-                            else
-                            {
-                                basis[kvp.Key] += (kvp.Value.DollarDelivered + kvp.Value.DollarSold) * (double)Program.HistoryYears[i].weight;
-                                cumulativeWeight[kvp.Key] += Program.HistoryYears[i].weight;
-                            }
+                            preallocatedIndex.Add(store, value);
+                            totalIndex -= value;
                         }
                     }
-                }
-            }
-            double sum = 0;
-            foreach (Store store in basis.Keys)
-            {
-                if (cumulativeWeight[store] > 0 && cumulativeWeight[store] != 1)
-                {
-                    basis[store] /= (double)cumulativeWeight[store];
-                }
-                sum += basis[store];
-            }
-            foreach (KeyValuePair<Store, double> kvp in basis)
-            {
-                index.Add(kvp.Key, kvp.Value / sum);
-            }
+                    mostConstrainedStores = GetMostConstrainedStores(index, dnsItemsByStore, preallocatedIndex);
 
-            foreach (Item item in Items.Values)
+                }
+                return new AllocationIndex(index, this, null, preallocatedIndex, totalIndex);
+            }
+            else
             {
-                item.Allocate(index);
+                return new AllocationIndex(index, this);
             }
         }
 
-
-
-        public void AllocateGroupItemsOld()
+        public List<Store> GetMostConstrainedStores(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore, Dictionary<Store,double> frozenStores = null)
         {
-            Dictionary<Store, double> basis = new Dictionary<Store, double>();
-            Dictionary<Store, decimal> cumulativeWeight = new Dictionary<Store, decimal>();
-            Dictionary<Store, double> index = new Dictionary<Store, double>();
-
-
-
-            foreach (var item in Items.Values)
+            if (dnsItemsByStore.Count > 0)
             {
-                for (int i = 0; i < Program.HistoryYears.Length; i++)
+                List<Store> mostConstrainedStores = new List<Store>();
+                double maxWeight = double.MinValue;
+                foreach (var kvp in dnsItemsByStore.Where(x => frozenStores == null || !frozenStores.ContainsKey(x.Key)))
                 {
-                    if (item.History[i] != null)
+                    if (kvp.Value.Weight[index] > maxWeight)
                     {
-                        foreach (KeyValuePair<Store, Metrics> kvp in item.History[i])
-                        {
-
-                            if (!basis.ContainsKey(kvp.Key))
-                            {
-                                basis.Add(kvp.Key, (kvp.Value.DollarDelivered + kvp.Value.DollarSold) * (double)Program.HistoryYears[i].weight);
-                                cumulativeWeight.Add(kvp.Key, Program.HistoryYears[i].weight);
-                            }
-                            else
-                            {
-                                basis[kvp.Key] += (kvp.Value.DollarDelivered + kvp.Value.DollarSold) * (double) Program.HistoryYears[i].weight;
-                                cumulativeWeight[kvp.Key] += Program.HistoryYears[i].weight;
-                            }
-                        }
+                        maxWeight = kvp.Value.Weight[index];
+                        mostConstrainedStores = new List<Store>() { kvp.Key };
+                    }
+                    else if (kvp.Value.Weight[index] >= maxWeight + 0.00001 && kvp.Value.Items.SetEquals(dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items))
+                    {
+                        mostConstrainedStores.Add(kvp.Key);
                     }
                 }
+                return mostConstrainedStores;
             }
-            double sum = 0;
-            foreach (Store store in basis.Keys)
-            {
-                if (cumulativeWeight[store] > 0 && cumulativeWeight[store] != 1)
-                {
-                    basis[store] /= (double) cumulativeWeight[store];
-                }
-                sum += basis[store];
-            }
-            foreach (KeyValuePair<Store, double> kvp in basis)
-            {
-                index.Add(kvp.Key, kvp.Value / sum);
-            }
-
-            foreach (Item item in Items.Values)
-            {
-                item.Allocate(index);
-            }
+            return null;
         }
 
 

@@ -57,5 +57,13 @@ namespace Cottage_Gardens_Analysis
                 return QtyDelivered >= 20 && QtySold == 0;
             }
         }
+
+        public double Performance
+        {
+            get
+            {
+                return (DollarDelivered + DollarSold) / 2;
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.VisualBasic;
 using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
@@ -21,7 +22,7 @@ namespace Cottage_Gardens_Analysis
         public const string storeRankingDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\2025 Home Depot Store Ranking.csv";
         public const string storeListDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
         public const string itemMaster = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Item Master.csv";
-        public const string Dns = @"C:\Users\"" + env + @""\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Do Not Ship List.csv";
+        public const string Dns = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Do Not Ship List.csv";
 
 
         public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
@@ -40,7 +41,7 @@ namespace Cottage_Gardens_Analysis
         // Dictionary key is to be tested as initial substring in the item number
         public static Dictionary<string, HashSet<int>> CategoryDNS = new Dictionary<string, HashSet<int>>();
 
-        public static (int year, decimal weight)[] HistoryYears = { (2024, 0.6M), (2023, 0.25M), (2022, 0.15M) };
+        public static int[] HistoryYears = new int[] { 2024, 2023,2022 };
         public static int BenchmarkYear = 2025;
 
         static void Main()
@@ -51,7 +52,7 @@ namespace Cottage_Gardens_Analysis
             ReadDoNotShip();
             for (int i = 0; i < HistoryYears.Length; i++) 
             {
-                ReadSales(HistoryYears[i].year, i);
+                ReadSales(HistoryYears[i], i);
             }
             ReadSales(BenchmarkYear);
             foreach (Group group in Groups.Values)
@@ -207,21 +208,31 @@ namespace Cottage_Gardens_Analysis
                         }
                         if (!cat.Groups.TryGetValue(groupName, out var group))
                         {
-                            group = new Group(cat, groupName);
+                            if (!Groups.TryGetValue(groupName, out group))
+                            {
+                                group = new Group(cat, groupName);
+                                Groups.Add(groupName, group);
+                            }
                             cat.Groups.Add(groupName, group);
-                            Groups.Add(groupName, group);
                         }
                         if (!cat.Genuses.TryGetValue(genusName, out var genus))
                         {
-                            genus = new Genus(cat, genusName);
+                            if (!Genuses.TryGetValue(genusName, out genus))
+                            {
+                                genus = new Genus(cat, genusName);
+                                Genuses.Add(genusName, genus);
+                            }
                             cat.Genuses.Add(genusName, genus);
-                            Genuses.Add(genusName, genus);
+
                         }
                         if (!genus.GenusSizes.TryGetValue(genusSizeName, out var genusSize))
                         {
-                            genusSize = new GenusSize(genus, genusSizeName, size);
+                            if (!GenusSizes.TryGetValue(genusSizeName, out genusSize))
+                            {
+                                genusSize = new GenusSize(genus, genusSizeName, size);
+                                GenusSizes.Add(genusSizeName, genusSize);
+                            }
                             genus.GenusSizes.Add(genusSizeName, genusSize);
-                            GenusSizes.Add(genusSizeName, genusSize);
                         }
                         Item item = new Item(nbr, desc, genusSize, group, tag, program, zone, multiple);
                         Items.Add(nbr, item);
@@ -264,7 +275,7 @@ namespace Cottage_Gardens_Analysis
                     {
                         if (!string.IsNullOrWhiteSpace(fields[i]))
                         {
-                            dnsSpecs.Add(new DoNotShipSpec(SpecLevel.Category, fields[i].Trim()));
+                            dnsSpecs.Add(new DoNotShipSpec(specLevel, fields[i].Trim()));
                         }
                         else
                         {
@@ -293,9 +304,11 @@ namespace Cottage_Gardens_Analysis
                             }
                             for (int i = offset; i < fields.Length; i++)
                             {
-                                if (!string.IsNullOrEmpty(fields[i]) && string.Equals(fields[i].Trim(), "N", StringComparison.OrdinalIgnoreCase) && i < dnsSpecs.Count)
+                                int count = 0;
+                                if (!string.IsNullOrEmpty(fields[0]) && string.Equals(fields[i].Trim(), "N", StringComparison.OrdinalIgnoreCase) && i < dnsSpecs.Count + offset)
                                 {
                                     dnsSpecs[i - offset].AddStore(store);
+                                    count++;
                                 }
                             }
                         }
@@ -314,6 +327,10 @@ namespace Cottage_Gardens_Analysis
             int count = dnsSpecs.Count;
             for (int i = count - 1; i >= 0; i--)
             {
+                if (dnsSpecs[i].Stores.Count == 0)
+                {
+                    Debug.WriteLine("Look");
+                }
                 switch (dnsSpecs[i].SpecificationLevel)
                 {
                     case SpecLevel.Item:
@@ -346,6 +363,25 @@ namespace Cottage_Gardens_Analysis
                             category.UpdateDoNotShip(dnsSpecs[i].Stores);
                         }
                         break;
+                }
+            }
+            SetDnsOnWeatherZones();
+        }
+
+        static void SetDnsOnWeatherZones()
+        {
+            foreach (Store store in Stores.Values)
+            {
+                foreach (Item item in Items.Values)
+                {
+                    if (store.WeatherZone < item.Zone)
+                    {
+                        if (item.DoNotShip == null)
+                        {
+                            item.DoNotShip = new HashSet<Store>();
+                        }
+                        item.DoNotShip.Add(store);
+                    }
                 }
             }
         }
@@ -433,14 +469,16 @@ namespace Cottage_Gardens_Analysis
 
                         if (historyIndex.HasValue)
                         {
-                            if (!item.DoNotShip.Contains(store) && item.Zone <= store.WeatherZone)
+                            if (!item.DoNotShip.Contains(store))
                             {
                                 item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
+                                item.Group.HasSales = true;
                             }
                         }
                         else
                         {
                             item.Benchmark.Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
+                            item.Group.HasSales = true;
                         }
                     }
                 }

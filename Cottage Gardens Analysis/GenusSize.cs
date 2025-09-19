@@ -12,6 +12,7 @@ namespace Cottage_Gardens_Analysis
         public string Name { get; set; }
         public string Size { get; set; }
         public Dictionary<string, Item> Items { get; set; }
+
         public GenusSize(Genus genus, string name, string size) 
         {
             Genus = genus;

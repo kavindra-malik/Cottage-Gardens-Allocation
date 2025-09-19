@@ -8,13 +8,21 @@ namespace Cottage_Gardens_Analysis
 {
     public class DoNotShipItems
     {
-        public double SalesWeight { get; set; }
+        public double[] Weight { get; set; }
         public HashSet<Item> Items { get; set; }
         public DoNotShipItems() 
         { 
-            SalesWeight = 0;
+            Weight = new double[Program.HistoryYears.Length];
             Items = new HashSet<Item>();
         }
 
+        public void AddItem(Item item)
+        {
+            Items.Add(item);
+            for (int i = 0; i < Program.HistoryYears.Length; i++)
+            {
+                Weight[i] += item.TotalSold(i);
+            }
+        }
     }
 }
