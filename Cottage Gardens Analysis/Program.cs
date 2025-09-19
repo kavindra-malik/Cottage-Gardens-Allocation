@@ -445,50 +445,6 @@ namespace Cottage_Gardens_Analysis
         }
         #endregion
 
-        #region
-        public static Dictionary<Store, double> GetIndex(Dictionary<Store, Metrics>[] history, Dictionary<Store, double> weight)
-        {
-            Dictionary<Store, double> basis = new Dictionary<Store, double>();
-            Dictionary<Store, decimal> cumulativeWeight = new Dictionary<Store, decimal>();
-            Dictionary<Store, double> index = new Dictionary<Store, double>();
-
-            for (int i = 0; i < Program.HistoryYears.Length; i++)
-            {
-                if (history[i] != null)
-                {
-                    foreach (KeyValuePair<Store, Metrics> kvp in history[i])
-                    {
-
-                        if (!basis.ContainsKey(kvp.Key))
-                        {
-                            basis.Add(kvp.Key, (kvp.Value.DollarDelivered + kvp.Value.DollarSold) * (double)HistoryYears[i].weight);
-                            cumulativeWeight.Add(kvp.Key, Program.HistoryYears[i].weight);
-                        }
-                        else
-                        {
-                            basis[kvp.Key] += (kvp.Value.DollarDelivered + kvp.Value.DollarSold) * (double)HistoryYears[i].weight;
-                            cumulativeWeight[kvp.Key] += Program.HistoryYears[i].weight;
-                        }
-                    }
-                }
-            }
-            double sum = 0;
-            foreach (Store store in basis.Keys)
-            {
-                if (cumulativeWeight[store] > 0 && cumulativeWeight[store] != 1)
-                {
-                    basis[store] /= (double)cumulativeWeight[store];
-                }
-                sum += basis[store];
-            }
-            foreach (KeyValuePair<Store, double> kvp in basis)
-            {
-                index.Add(kvp.Key, kvp.Value / sum);
-            }
-            return index;
-        }
-        #endregion
-
         #region Helper methods
         private static string SalesFilePath(int year)
         {

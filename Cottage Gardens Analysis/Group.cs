@@ -30,6 +30,51 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
+        #region
+        public void CalculateIndex()
+        {
+            Dictionary<Store, DoNotShipItems> dnsItems = new Dictionary<Store, DoNotShipItems>();
+            Dictionary<Store, double> allocation = new Dictionary<Store, double>();
+            HashSet<Store> storeSet = new HashSet<Store>();
+
+            foreach (var item in Items.Values)
+            {
+                foreach (Dictionary<Store, Metrics> history in  item.History)
+                {
+                    storeSet.UnionWith(history.Keys);
+                }
+                foreach (Store store in item.DoNotShip)
+                {
+                    if (!dnsItems.TryGetValue(store, out  var doNotShip))
+                    {
+                        doNotShip = new DoNotShipItems();
+                        dnsItems.Add(store, doNotShip);
+                    }
+                    doNotShip.Items.Add(item);
+                    doNotShip.SalesWeight += item.TotalSold;
+                }
+            }
+
+            int dnsItemsCount = dnsItems.Count;
+            while (dnsItemsCount > 0)
+            {
+                Store mostRestrictedStore = dnsItems.First().Key;
+                double sales = dnsItems[mostRestrictedStore].SalesWeight;
+                foreach (var kvp in dnsItems) 
+                { 
+                    if (kvp.Value.SalesWeight > sales)
+                    {
+                        mostRestrictedStore = kvp.Key;
+                    }
+                }
+
+
+
+            }
+
+        }
+        #endregion
+
         public void AllocateGroupItems()
         {
             Dictionary<Store, double> basis = new Dictionary<Store, double>();

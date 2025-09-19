@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Category.cs" />
+    <Compile Include="DoNotShipItems.cs" />
     <Compile Include="DoNotShipSpec.cs" />
     <Compile Include="Genus.cs" />
     <Compile Include="GenusSize.cs" />

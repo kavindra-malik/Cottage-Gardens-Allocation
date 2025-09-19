@@ -23,6 +23,7 @@ namespace Cottage_Gardens_Analysis
         public HashSet<Store> DoNotShip { get; set; }
         public Dictionary<Store, int> Allocation { get; set; }
         private int _totalQty;
+        private double _totalSold;
 
 
 
@@ -40,6 +41,7 @@ namespace Cottage_Gardens_Analysis
             History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             DoNotShip = null;
             _totalQty = -1;
+            _totalSold = 0;
         }
 
         public void UpdateDoNotShip(HashSet<Store> doNotShip)
@@ -118,6 +120,30 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
+        public double TotalSold
+        {
+            get
+            {
+                if (_totalSold < 0)
+                {
+                    _totalSold = 0;
+                    decimal sumWeight = 0;
+                    for (int i = 0; i < History.Length; i++)
+                    {
+                        foreach (Metrics metrics in History[i].Values)
+                        {
+                            _totalSold += (double) Program.HistoryYears[i].weight * metrics.DollarSold;
+                        }
+                        sumWeight += Program.HistoryYears[i].weight;
+                    }
+                    if (sumWeight < 1)
+                    {
+                        _totalSold /= (double) sumWeight;
+                    }
+                }
+                return _totalSold;
+            }
+        }
 
         public override int GetHashCode()
         {
