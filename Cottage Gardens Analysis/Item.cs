@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,9 +23,9 @@ namespace Cottage_Gardens_Analysis
         public Dictionary<Store, Metrics> Benchmark { get; set; }
         public HashSet<Store> DoNotShip { get; set; }
         public Dictionary<Store, int> Allocation { get; set; }
+
         private int _totalQty;
         private double _totalSold;
-
 
 
         // Item, Item Description, Size,    Inactive, Category,    Tag Code,    Program, Zone,    GROUP, GENUS SIZE, GENUS
@@ -55,7 +56,7 @@ namespace Cottage_Gardens_Analysis
         public void Allocate(Dictionary<Store, double> index)
         {
             Dictionary<Store, double> storeIndex = index;
-            var dns = from x in index.Keys where DoNotShip.Contains(x) || x.WeatherZone >= Zone select x;
+            var dns = from x in index.Keys where DoNotShip.Contains(x) select x;
             if (dns.Any())
             {
                 storeIndex = new Dictionary<Store, double>();
