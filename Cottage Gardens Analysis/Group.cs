@@ -10,14 +10,17 @@ namespace Cottage_Gardens_Analysis
     {
         public Category Cat { get; set; }
         public string Name { get; set; }
-        public bool HasSales { get; set; }
+        public bool[] HasHistory { get; set; }
+        public bool HasBenchmark { get; set; }
+
         public Dictionary<string, Item> Items { get; set; }
 
         public Group(Category cat, string name)
         {
             Cat = cat;
             Name = name;
-            HasSales = false;
+            HasHistory = new bool[Program.HistoryYears.Length];
+            HasBenchmark = false;
             Items = new Dictionary<string, Item>();
         }
 
@@ -59,10 +62,23 @@ namespace Cottage_Gardens_Analysis
 
         private AllocationIndex GetCompositeIndex(Dictionary<Store, DoNotShipItems> dnsItemsByStore)
         {
-            AllocationIndex index0 = AllocateYear(0, dnsItemsByStore);
-            AllocationIndex index1 = AllocateYear(1, dnsItemsByStore);
-            AllocationIndex index2 = AllocateYear(2, dnsItemsByStore);
-            return new AllocationIndex(index0, new AllocationIndex(index1, index2));
+            AllocationIndex currentIndex = null;
+            for (int i = Program.HistoryYears.Length - 1; i >= 0; i--)
+            {
+                if (HasHistory[i])
+                {
+                    AllocationIndex index = AllocateYear(i, dnsItemsByStore);
+                    if (currentIndex == null)
+                    {
+                        currentIndex = index;
+                    }
+                    else
+                    {
+                        currentIndex = new AllocationIndex(currentIndex, index)
+                    }
+                }
+            }
+            return currentIndex;
         }
 
         public AllocationIndex AllocateYear(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore)
@@ -99,7 +115,7 @@ namespace Cottage_Gardens_Analysis
             if (dnsItemsByStore.Count > 0)
             {
                 List<Store> mostConstrainedStores = new List<Store>();
-                double maxWeight = double.MinValue;
+                double maxWeight = 0;
                 foreach (var kvp in dnsItemsByStore.Where(x => frozenStores == null || !frozenStores.ContainsKey(x.Key)))
                 {
                     if (kvp.Value.Weight[index] > maxWeight)

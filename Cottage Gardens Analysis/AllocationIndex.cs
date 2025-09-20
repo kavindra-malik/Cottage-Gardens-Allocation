@@ -17,7 +17,7 @@ namespace Cottage_Gardens_Analysis
 
         public AllocationIndex(int yearIndex, Group group, HashSet<Item> excludeItems = null, Dictionary<Store, double> preallocatedIndex = null, double totalIndex = 1)
         {
-            foreach (var item in group.Items.Values.Where(x => excludeItems == null || !excludeItems.Contains(x)))
+            foreach (var item in group.Items.Values.Where(x => x.History[yearIndex] != null && (excludeItems == null || !excludeItems.Contains(x))))
             {
                 foreach (var kvp in item.History[yearIndex].Where(x => preallocatedIndex == null || !preallocatedIndex.ContainsKey(x.Key)))
                 {
@@ -31,12 +31,15 @@ namespace Cottage_Gardens_Analysis
                     }
                 }
             }
-            NormalizeIndex(totalIndex);
-            if (preallocatedIndex != null)
+            if (Index.Count > 0)
             {
-                foreach (var kvp in preallocatedIndex)
+                NormalizeIndex(totalIndex);
+                if (preallocatedIndex != null)
                 {
-                    Index.Add(kvp.Key, kvp.Value);
+                    foreach (var kvp in preallocatedIndex)
+                    {
+                        Index.Add(kvp.Key, kvp.Value);
+                    }
                 }
             }
         }

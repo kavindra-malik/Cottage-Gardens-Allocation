@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -55,7 +56,7 @@ namespace Cottage_Gardens_Analysis
                 ReadSales(HistoryYears[i], i);
             }
             ReadSales(BenchmarkYear);
-            foreach (Group group in Groups.Values)
+            foreach (Group group in Groups.Values.Where(g => g.HasSales))
             {
                 group.AllocateGroupItems();
             }
@@ -390,6 +391,8 @@ namespace Cottage_Gardens_Analysis
         #region ReadSales
         static void ReadSales(int year, int? historyIndex = null)
         {
+            int rejectedCount = 0;
+            HashSet<string> rejectedItems = new HashSet<string>();
             using (TextFieldParser csvParser = new TextFieldParser(SalesFilePath(year)))
             {
                 csvParser.CommentTokens = new string[] { "#" };
@@ -411,11 +414,13 @@ namespace Cottage_Gardens_Analysis
                         string itemCode = fields[2].Trim();
                         if (string.IsNullOrWhiteSpace(itemCode))
                         {
-                            throw new Exception("Line Nbr: " + lineNbr + ", Item Code =  Null encountered");
+                            continue;
                         }
                         if (!Items.TryGetValue(itemCode, out var item))
                         {
-                            throw new Exception("Line Nbr: " + lineNbr + ", Unknown Item Code: " + itemCode);
+                            rejectedItems.Add(itemCode);
+                            rejectedCount++;
+                            continue;
                         }
                         int storeNbr = 0;
                         if (!string.IsNullOrWhiteSpace(fields[1]) && int.TryParse(fields[1], out storeNbr) && !string.IsNullOrWhiteSpace(itemCode))
@@ -434,55 +439,67 @@ namespace Cottage_Gardens_Analysis
                             throw new Exception("Line Nbr: " + lineNbr + ", Unknown store nbr: " + storeNbr);
                         }
                         int qtyDelivered = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[8]) && !int.TryParse( fields[8], out qtyDelivered))
+                        if (!string.IsNullOrWhiteSpace(fields[8]) && !int.TryParse( fields[8], NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out qtyDelivered))
                         {
                             throw new Exception("Line Nbr: " + lineNbr + ", Non-integer Qty Del: " + fields[8]);
                         }
 
                         double dollarsDelivered = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[9]) && double.TryParse(fields[9], out dollarsDelivered))
+                        if (!string.IsNullOrWhiteSpace(fields[9]) && !double.TryParse(fields[9], NumberStyles.Currency, CultureInfo.InvariantCulture, out dollarsDelivered))
                         {
                             throw new Exception("Line Nbr: " + lineNbr + ", $ Del " + fields[9] + " could not be parsed.");
                         }
                         double dollarsDeliveredRetail = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[10]) && double.TryParse(fields[10], out dollarsDeliveredRetail))
+                        if (!string.IsNullOrWhiteSpace(fields[10]) && !double.TryParse(fields[10], NumberStyles.Currency, CultureInfo.InvariantCulture, out dollarsDeliveredRetail))
                         {
                             throw new Exception("Line Nbr: " + lineNbr + ", $ Del Retail " + fields[10] + " could not be parsed.");
                         }
 
                         int qtySold = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[11]) && !int.TryParse(fields[11], out qtySold))
+                        if (!string.IsNullOrWhiteSpace(fields[11]) && !int.TryParse(fields[11], NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out qtySold))
                         {
                             throw new Exception("Line Nbr: " + lineNbr + ", Non-integer Qty Sold: " + fields[11]);
                         }
 
                         double dollarsSold = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[12]) && double.TryParse(fields[12], out dollarsSold))
+                        if (!string.IsNullOrWhiteSpace(fields[12]) && !double.TryParse(fields[12], NumberStyles.Currency, CultureInfo.InvariantCulture, out dollarsSold))
                         {
                             throw new Exception("Line Nbr: " + lineNbr + ", $ Sold " + fields[12] + " could not be parsed.");
                         }
                         double dollarsSoldRetail = 0;
-                        if (!string.IsNullOrWhiteSpace(fields[10]) && double.TryParse(fields[13], out dollarsSoldRetail))
+                        if (!string.IsNullOrWhiteSpace(fields[10]) && !double.TryParse(fields[13], out dollarsSoldRetail))
                         {
                             throw new Exception("Line Nbr: " + lineNbr + ", $ Sold Retail " + fields[13] + " could not be parsed.");
                         }
 
                         if (historyIndex.HasValue)
                         {
-                            if (!item.DoNotShip.Contains(store))
+                            if (item.DoNotShip == null || !item.DoNotShip.Contains(store))
                             {
+                                if (item.History[historyIndex.Value] == null)
+                                {
+                                    item.History[historyIndex.Value] = new Dictionary<Store, Metrics>();
+                                }
                                 item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
-                                item.Group.HasSales = true;
+                                item.Group.HasHistory[historyIndex.Value] = true;
                             }
                         }
                         else
                         {
+                            if (item.Benchmark == null)
+                            {
+                                item.Benchmark = new Dictionary<Store, Metrics>();
+                            }
                             item.Benchmark.Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
-                            item.Group.HasSales = true;
+                            item.Group.HasBenchmark = true;
                         }
                     }
                 }
             }
+            Debug.WriteLine(year + "," + rejectedCount + "," + rejectedItems.Count);
+            
+            // Debugging
+
         }
         #endregion
 
