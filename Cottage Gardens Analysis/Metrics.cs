@@ -54,7 +54,7 @@ namespace Cottage_Gardens_Analysis
         {
             get
             {
-                return QtyDelivered >= 20 && QtySold == 0;
+                return (QtyDelivered >= 20 && QtySold == 0) || QtyDelivered == 0;
             }
         }
 

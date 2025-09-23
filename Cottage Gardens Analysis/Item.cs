@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
@@ -23,6 +24,7 @@ namespace Cottage_Gardens_Analysis
         public Dictionary<Store, Metrics> Benchmark { get; set; }
         public HashSet<Store> DoNotShip { get; set; }
         public Dictionary<Store, int> Allocation { get; set; }
+        public bool InsufficientHistory { get; set; }
 
         private int? _totalQty;
         private double?[] _totalSold = new double?[Program.HistoryYears.Length];
@@ -40,6 +42,7 @@ namespace Cottage_Gardens_Analysis
             Multiple = multiple;
             History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             DoNotShip = null;
+            InsufficientHistory = false;
         }
 
         public void UpdateDoNotShip(HashSet<Store> doNotShip)
@@ -55,20 +58,14 @@ namespace Cottage_Gardens_Analysis
             // Store-specific allocation index
             HashSet<Store> targetSet = TargetStoreSet;
             Dictionary<Store, double> storeIndex = index.Index.Where(x => targetSet.Contains(x.Key)).ToDictionary(x => x.Key, x => x.Value);
-            var dns = from x in index.Index.Keys where targetSet.Contains(x) && DoNotShip.Contains(x) select x;
-            if (dns.Any())
+            if (storeIndex.Count < index.Index.Count)
             {
-                storeIndex = new Dictionary<Store, double>();
                 double sum = 0;
-                foreach (KeyValuePair<Store, double> kvp in index.Index)
+                foreach (KeyValuePair<Store, double> kvp in storeIndex)
                 {
-                    if (!DoNotShip.Contains(kvp.Key))
-                    {
-                        storeIndex.Add(kvp.Key, kvp.Value);
-                        sum += kvp.Value;
-                    }
+                    sum += kvp.Value;
                 }
-                foreach (Store store in storeIndex.Keys)
+                foreach (Store store in new List<Store>(storeIndex.Keys))
                 {
                     storeIndex[store] /= sum;
                 }
@@ -89,6 +86,7 @@ namespace Cottage_Gardens_Analysis
             if (totalAllocated < TotalQty) 
             {
                 residuals.Sort();
+                
                 for (int i = 0; i < residuals.Count; i++)
                 {
                     Allocation[residuals[i].Store] += Multiple;
@@ -106,13 +104,17 @@ namespace Cottage_Gardens_Analysis
             get
             {
                 HashSet<Store> set = new HashSet<Store>();
-                foreach (var kvp in Benchmark)
+                if (Benchmark != null)
                 {
-                    if (!DoNotShip.Contains(kvp.Key) && kvp.Value.Ignore)
+                    foreach (var kvp in Benchmark)
                     {
-                        set .Add(kvp.Key);
+                        if (DoNotShip == null || (!DoNotShip.Contains(kvp.Key) && !kvp.Value.Ignore))
+                        {
+                            set.Add(kvp.Key);
+                        }
                     }
                 }
+
                 return set;
             }
         }
@@ -124,11 +126,31 @@ namespace Cottage_Gardens_Analysis
                 if (_totalQty == null)
                 {
                     _totalQty = 0;
-                    foreach (KeyValuePair<Store, Metrics> kvp in Benchmark)
+                    if (Benchmark != null)
                     {
-                        if (!DoNotShip.Contains(kvp.Key))
+                        foreach (KeyValuePair<Store, Metrics> kvp in Benchmark)
                         {
-                            _totalQty += kvp.Value.QtyDelivered;
+                            if (!DoNotShip.Contains(kvp.Key))
+                            {
+                                _totalQty += kvp.Value.QtyDelivered;
+                            }
+                        }
+                        int remainder = _totalQty.Value % Multiple;
+                        if (Math.Abs(remainder) > Multiple / 2.0) // Use 2.0 for float division
+                        {
+                            if (remainder > 0)
+                            {
+                                _totalQty = _totalQty.Value + (Multiple - remainder);
+                            }
+                            else
+                            {
+                                _totalQty = _totalQty.Value - (Multiple + remainder);
+                            }
+                        }
+                        // Otherwise, subtract the remainder to get the lower multiple
+                        else
+                        {
+                            _totalQty = _totalQty.Value - remainder;
                         }
                     }
                 }

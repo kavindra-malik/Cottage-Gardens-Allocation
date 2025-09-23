@@ -15,11 +15,13 @@ namespace Cottage_Gardens_Analysis
             Index = new Dictionary<Store, double>();
         }
 
-        public AllocationIndex(int yearIndex, Group group, HashSet<Item> excludeItems = null, Dictionary<Store, double> preallocatedIndex = null, double totalIndex = 1)
+        public AllocationIndex(int yearIndex, Group group,HashSet<Store> allocationSet, HashSet<Item> excludeItems = null, Dictionary<Store, double> preallocatedIndex = null, double totalIndex = 1)
         {
+            Index = new Dictionary<Store, double>();
+
             foreach (var item in group.Items.Values.Where(x => x.History[yearIndex] != null && (excludeItems == null || !excludeItems.Contains(x))))
             {
-                foreach (var kvp in item.History[yearIndex].Where(x => preallocatedIndex == null || !preallocatedIndex.ContainsKey(x.Key)))
+                foreach (var kvp in item.History[yearIndex].Where(x => (preallocatedIndex == null || !preallocatedIndex.ContainsKey(x.Key)) && allocationSet.Contains(x.Key)))
                 {
                     if (!Index.TryGetValue(kvp.Key, out double value))
                     {
@@ -64,7 +66,7 @@ namespace Cottage_Gardens_Analysis
             {
                 sum += Index[x] = 2 * index2.Index[x];
             }
-            foreach (var x in Index.Keys)
+            foreach (var x in new List<Store>(Index.Keys))
             {
                 Index[x] /= sum;
             }
@@ -77,11 +79,10 @@ namespace Cottage_Gardens_Analysis
             {
                 sum += Index[x];
             }
-            foreach (var x in Index.Keys)
+            foreach (var x in new List<Store>(Index.Keys))
             {
                 Index[x] *= totalIndex / sum;
             }
         }
-
     }
 }

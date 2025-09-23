@@ -56,7 +56,7 @@ namespace Cottage_Gardens_Analysis
                 ReadSales(HistoryYears[i], i);
             }
             ReadSales(BenchmarkYear);
-            foreach (Group group in Groups.Values.Where(g => g.HasSales))
+            foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
                 group.AllocateGroupItems();
             }
@@ -371,18 +371,15 @@ namespace Cottage_Gardens_Analysis
 
         static void SetDnsOnWeatherZones()
         {
-            foreach (Store store in Stores.Values)
+            foreach (Item item in Items.Values)
             {
-                foreach (Item item in Items.Values)
+                foreach (Store store in Stores.Values.Where(x => (item.DoNotShip == null || !item.DoNotShip.Contains(x)) && x.WeatherZone < item.Zone))
                 {
-                    if (store.WeatherZone < item.Zone)
+                    if (item.DoNotShip == null)
                     {
-                        if (item.DoNotShip == null)
-                        {
-                            item.DoNotShip = new HashSet<Store>();
-                        }
-                        item.DoNotShip.Add(store);
+                        item.DoNotShip = new HashSet<Store>();
                     }
+                    item.DoNotShip.Add(store);
                 }
             }
         }
@@ -393,6 +390,7 @@ namespace Cottage_Gardens_Analysis
         {
             int rejectedCount = 0;
             HashSet<string> rejectedItems = new HashSet<string>();
+            int rejectedDns = 0;
             using (TextFieldParser csvParser = new TextFieldParser(SalesFilePath(year)))
             {
                 csvParser.CommentTokens = new string[] { "#" };
@@ -483,6 +481,10 @@ namespace Cottage_Gardens_Analysis
                                 item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
                                 item.Group.HasHistory[historyIndex.Value] = true;
                             }
+                            else
+                            {
+                                rejectedDns++;
+                            }
                         }
                         else
                         {
@@ -491,12 +493,15 @@ namespace Cottage_Gardens_Analysis
                                 item.Benchmark = new Dictionary<Store, Metrics>();
                             }
                             item.Benchmark.Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
-                            item.Group.HasBenchmark = true;
+                            if (item.TargetStoreSet.Count  > 0)
+                            {
+                                item.Group.HasBenchmark = true;
+                            }
                         }
                     }
                 }
             }
-            Debug.WriteLine(year + "," + rejectedCount + "," + rejectedItems.Count);
+            Debug.WriteLine("YEAR:" + year + ", Rejected Rows (Inactive Item): " + rejectedCount + ", Rejected Rows (DNS Location): " + rejectedDns + ", Inactive Item Count: " + rejectedItems.Count);
             
             // Debugging
 

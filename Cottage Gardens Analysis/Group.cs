@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,53 +36,74 @@ namespace Cottage_Gardens_Analysis
         #region
         public void AllocateGroupItems()
         {
-            Dictionary<Store, DoNotShipItems> dnsItemsByStore = new Dictionary<Store, DoNotShipItems>();
-
-            foreach (var item in Items.Values)
+            if (Name == "JUNIPERUS UPRIGHT #1")
             {
-                foreach (Store store in item.DoNotShip)
-                {
-                    if (!dnsItemsByStore.TryGetValue(store, out  var doNotShip))
-                    {
-                        doNotShip = new DoNotShipItems();
-                        dnsItemsByStore.Add(store, doNotShip);
-                    }
-                    doNotShip.AddItem(item);
-                }
+                Debug.WriteLine("Look");
             }
-            AllocationIndex index = GetCompositeIndex(dnsItemsByStore);
+            HashSet<Store> allocationSet = new HashSet<Store>();
             foreach (var item in Items.Values.Where(x => x.TotalQty > 0))
             {
-                item.Allocate(index);
+                allocationSet.UnionWith(item.TargetStoreSet);
             }
+            if (allocationSet.Count > 0)
+            {
+                Dictionary<Store, DoNotShipItems> dnsItemsByStore = new Dictionary<Store, DoNotShipItems>();
 
+                foreach (var item in Items.Values)
+                {
+                    IEnumerable<Store> storeDns = allocationSet.Intersect(item.DoNotShip);
+                    foreach (Store store in storeDns)
+                    {
+                        if (!dnsItemsByStore.TryGetValue(store, out var doNotShip))
+                        {
+                            doNotShip = new DoNotShipItems();
+                            dnsItemsByStore.Add(store, doNotShip);
+                        }
+                        doNotShip.AddItem(item);
+                    }
+                }
+                AllocationIndex index = GetCompositeIndex(dnsItemsByStore, allocationSet);
+
+                foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
+                {
+                    if (index != null)
+                    {
+                        item.Allocate(index);
+                    }
+                    else
+                    {
+                        item.InsufficientHistory = true;
+                    }
+                }
+
+            }
         }
         #endregion
 
 
 
-        private AllocationIndex GetCompositeIndex(Dictionary<Store, DoNotShipItems> dnsItemsByStore)
+        private AllocationIndex GetCompositeIndex(Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet)
         {
             AllocationIndex currentIndex = null;
             for (int i = Program.HistoryYears.Length - 1; i >= 0; i--)
             {
                 if (HasHistory[i])
                 {
-                    AllocationIndex index = AllocateYear(i, dnsItemsByStore);
+                    AllocationIndex index = AllocateYear(i, dnsItemsByStore, allocationSet);
                     if (currentIndex == null)
                     {
                         currentIndex = index;
                     }
                     else
                     {
-                        currentIndex = new AllocationIndex(currentIndex, index)
+                        currentIndex = new AllocationIndex(currentIndex, index);
                     }
                 }
             }
             return currentIndex;
         }
 
-        public AllocationIndex AllocateYear(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore)
+        public AllocationIndex AllocateYear(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet)
         {
             if (dnsItemsByStore.Count > 0)
             {
@@ -90,7 +112,7 @@ namespace Cottage_Gardens_Analysis
                 List<Store> mostConstrainedStores = GetMostConstrainedStores(index, dnsItemsByStore, preallocatedIndex);
                 while (mostConstrainedStores != null && mostConstrainedStores.Count > 0)
                 {
-                    AllocationIndex allocationIndex = new AllocationIndex(index, this, dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items, preallocatedIndex, totalIndex);
+                    AllocationIndex allocationIndex = new AllocationIndex(index, this, allocationSet, dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items, preallocatedIndex, totalIndex);
                     foreach (Store store in mostConstrainedStores)
                     {
                         if (allocationIndex.Index.TryGetValue(store, out double value))
@@ -102,11 +124,11 @@ namespace Cottage_Gardens_Analysis
                     mostConstrainedStores = GetMostConstrainedStores(index, dnsItemsByStore, preallocatedIndex);
 
                 }
-                return new AllocationIndex(index, this, null, preallocatedIndex, totalIndex);
+                return new AllocationIndex(index, this, allocationSet, null, preallocatedIndex, totalIndex);
             }
             else
             {
-                return new AllocationIndex(index, this);
+                return new AllocationIndex(index, this, allocationSet);
             }
         }
 
@@ -123,7 +145,7 @@ namespace Cottage_Gardens_Analysis
                         maxWeight = kvp.Value.Weight[index];
                         mostConstrainedStores = new List<Store>() { kvp.Key };
                     }
-                    else if (kvp.Value.Weight[index] >= maxWeight + 0.00001 && kvp.Value.Items.SetEquals(dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items))
+                    else if (kvp.Value.Weight[index] + 0.0000001 >= maxWeight  && kvp.Value.Items.SetEquals(dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items))
                     {
                         mostConstrainedStores.Add(kvp.Key);
                     }
