@@ -58,7 +58,9 @@ namespace Cottage_Gardens_Analysis
             ReadSales(BenchmarkYear);
             foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
+                Debug.WriteLine("Allocating Group: " + group.Name);
                 group.AllocateGroupItems();
+                Debug.WriteLine("Done Allocating Group: " + group.Name);
             }
 
         }
