@@ -13,6 +13,7 @@ namespace Cottage_Gardens_Analysis
         public string Name { get; set; }
         public bool[] HasHistory { get; set; }
         public bool HasBenchmark { get; set; }
+        public Dictionary<Store, Metrics>[] History { get; set; }
 
         public Dictionary<string, Item> Items { get; set; }
 
@@ -58,6 +59,7 @@ namespace Cottage_Gardens_Analysis
                         doNotShip.AddItem(item);
                     }
                 }
+                InitHistory(allocationSet);
                 AllocationIndex index = GetCompositeIndex(dnsItemsByStore, allocationSet);
 
                 foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
@@ -70,6 +72,7 @@ namespace Cottage_Gardens_Analysis
                     {
                         item.InsufficientHistory = true;
                     }
+                    item.Output();
                 }
 
             }
@@ -174,6 +177,37 @@ namespace Cottage_Gardens_Analysis
             return null;
         }
 
+        public void InitHistory(HashSet<Store> allocationSet)
+        {
+            History  = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
+            foreach (Item item in Items.Values)
+            {
+                if (item.Benchmark != null && item.TotalQty > 0)
+                {
+                    for (int i = 0; i < Program.HistoryYears.Length; i++)
+                    {
+                        if (item.History[i] != null)
+                        {
+                            foreach (var kvp in item.History[i].Where(x => !x.Value.Ignore && allocationSet.Contains(x.Key)))
+                            {
+                                if (History [i] == null)
+                                {
+                                    History [i] = new Dictionary<Store, Metrics>();
+                                }
+                                if (!History [i].ContainsKey(kvp.Key))
+                                {
+                                    History [i][kvp.Key] = new Metrics(kvp.Value);
+                                }
+                                else
+                                {
+                                    History [i][kvp.Key].Add(kvp.Value);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         public bool Equals(Group other)
         {

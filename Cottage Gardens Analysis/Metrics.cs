@@ -39,8 +39,6 @@ namespace Cottage_Gardens_Analysis
             this.DollarSoldRetail = original.DollarSoldRetail;
         }
 
-
-
         public void Add(Metrics other)
         {
             this.QtyDelivered += other.QtyDelivered;
@@ -65,10 +63,126 @@ namespace Cottage_Gardens_Analysis
             {
                 if (DollarDelivered + DollarSold > 50000)
                 {
-                    Debug.WriteLine("Look : DollarDelivered = " + DollarDelivered + "DollarSold = "+ DollarSold);
+                    Debug.WriteLine("Look : DollarDelivered = " + DollarDelivered + "DollarSold = " + DollarSold);
                 }
                 return (DollarDelivered + DollarSold) / 2000;
             }
         }
+
+        public double DollarSellThruPercent
+        {
+            get
+            {
+                return DollarDelivered > 0 ? Math.Round(100 * DollarSold / DollarDelivered, 2) : 0;
+            }
+        }
+
+        public double UnitSellThruPercent
+        {
+            get
+            {
+                return QtyDelivered > 0 ? Math.Round(100 * (double)QtySold / QtyDelivered, 2) : 0;
+            }
+        }
+
+        public static string HistoryHeader
+        {
+            get
+            {
+                StringBuilder sb = new StringBuilder();
+                for (int year = 0; year < Program.HistoryYears.Length; year++)
+                {
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Dollar Delivered");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Dollar Sold");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Dollar SellThru %");
+                    sb.Append(',');
+                    sb.Append(year + " - Unit SellThru %");
+                }
+                return sb.ToString();
+            }
+        }
+
+        public string HistoryDetail
+        {
+            get
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append(',');
+                sb.Append(DollarDelivered.ToString());
+                sb.Append(',');
+                sb.Append(DollarSold.ToString());
+                sb.Append(',');
+                sb.Append(DollarSellThruPercent);
+                sb.Append("%,");
+                sb.Append(',');
+                sb.Append(UnitSellThruPercent);
+                sb.Append("%");
+                return sb.ToString();
+            }
+        }
+
+        public static string NullHistoryDetail
+        {
+            get
+            {
+                return ",,,,";
+            }
+        }
+
+        public static string BenchmarkHeader
+        {
+            get
+            {
+                return ", Qty Delivered, Dollar Delivered, Dollar Delivered Retail, Qty Sold, Dollar Sold, Dollar Sold Retail, Dollar SellThru %, Unit SellThru %,Record Ignored?";
+
+            }
+        }
+
+        public string BenchmarkDetail
+        {
+            get
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append(',');
+                sb.Append(QtyDelivered.ToString());
+                sb.Append(',');
+                sb.Append(DollarDelivered.ToString());
+                sb.Append(',');
+                sb.Append(DollarDeliveredRetail.ToString());
+
+                sb.Append(',');
+                sb.Append(QtySold.ToString());
+                sb.Append(',');
+                sb.Append(DollarSold.ToString());
+                sb.Append(',');
+                sb.Append(DollarSoldRetail.ToString());
+
+                sb.Append(',');
+                sb.Append(DollarSellThruPercent);
+                sb.Append("%");
+
+                sb.Append(',');
+                sb.Append(UnitSellThruPercent);
+                sb.Append("%");
+
+                sb.Append(',');
+                sb.Append(Ignore);
+
+                return sb.ToString();
+            }
+        }
+
+
+        public static string NullBenchmarkDetail
+        {
+            get
+            {
+                return ",,,,,,,,";
+            }
+        }
+
     }
 }

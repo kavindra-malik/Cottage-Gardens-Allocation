@@ -34,6 +34,23 @@ namespace Cottage_Gardens_Analysis
             WeatherZone = weatherZone;
         }
 
+        public string StoreDetail
+        {
+            get
+            {
+                return Market + "," + Nbr + "," + Name + "," + City + "," + State + "," + WeatherZone;
+            }
+        }
+
+        public static string StoreHeader
+        {
+            get
+            {
+                return "Market, Store Nbr, Store Name, City, State,Weather Zone";
+            }
+        }
+
+
         public bool Equals(Store other)
         {
             if (other == null) return false;

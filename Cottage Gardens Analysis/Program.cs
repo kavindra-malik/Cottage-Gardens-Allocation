@@ -18,7 +18,6 @@ namespace Cottage_Gardens_Analysis
     {
         public const string env = "test"; // "kavin"; 
 
-        public const string outputPath = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
 
         public const string storeRankingDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\2025 Home Depot Store Ranking.csv";
         public const string storeListDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
@@ -27,6 +26,9 @@ namespace Cottage_Gardens_Analysis
 
 
         public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
+
+        public const string outputPath = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
+        
 
         public enum SpecLevel { Category, Genus, GenusSize, Group, Item }
 
@@ -45,6 +47,8 @@ namespace Cottage_Gardens_Analysis
         public static int[] HistoryYears = new int[] { 2024, 2023,2022 };
         public static int BenchmarkYear = 2025;
 
+        public static StreamWriter itemStream { get; set; }
+
         static void Main()
         {
             ReadStoreRanking();
@@ -56,14 +60,34 @@ namespace Cottage_Gardens_Analysis
                 ReadSales(HistoryYears[i], i);
             }
             ReadSales(BenchmarkYear);
+
+            if (File.Exists(Path.Combine(outputPath, "Item Allocations.CSV")))
+            {
+                File.Delete(Path.Combine(outputPath, "Item Allocations.CSV"));
+            }
+            OutputItemAllocationsHeader();
             foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
-                Debug.WriteLine("Allocating Group: " + group.Name);
+//                Debug.WriteLine("Allocating Group: " + group.Name);
                 group.AllocateGroupItems();
-                Debug.WriteLine("Done Allocating Group: " + group.Name);
+//                Debug.WriteLine("Done Allocating Group: " + group.Name);
             }
 
         }
+
+        #region
+        static void OutputItemAllocationsHeader()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(Store.StoreHeader);
+            sb.Append(Item.ItemHeader);
+            sb.Append(Metrics.BenchmarkHeader);
+            sb.Append(Item.AllocationHeader);
+            sb.Append(Metrics.HistoryHeader);
+            OutputItemAllocation(sb.ToString());
+        }
+        #endregion
+
 
         #region ReadStoreRanking
         static void ReadStoreRanking()
@@ -237,7 +261,7 @@ namespace Cottage_Gardens_Analysis
                             }
                             genus.GenusSizes.Add(genusSizeName, genusSize);
                         }
-                        Item item = new Item(nbr, desc, genusSize, group, tag, program, zone, multiple);
+                        Item item = new Item(nbr, desc, size, genusSize, group, tag, program, zone, multiple);
                         Items.Add(nbr, item);
                         genusSize.Items.Add(nbr, item);
                         group.Items.Add(nbr, item);
@@ -509,6 +533,34 @@ namespace Cottage_Gardens_Analysis
         }
         #endregion
 
+        #region GroupAllocationsHeader
+        static string GroupAllocationsHeader()
+        {
+            return "Group, Category, Qty Del,$ Del,$ Del Retail, Qty Sold,$ Sold,$ Sold Retail, Qty On Hand, Sell Thru % $$$,Sell Thru % Units, Record Ignored?, Eligible To Ship, Allocated Units";
+        }
+        #endregion
+
+        #region GenusSizeAllocationsHeader
+        static string GenusSizeAllocationsHeader()
+        {
+            return "Group, Category, Qty Del,$ Del,$ Del Retail, Qty Sold,$ Sold,$ Sold Retail, Qty On Hand, Sell Thru % $$$,Sell Thru % Units, Record Ignored?, Eligible To Ship, Allocated Units";
+        }
+        #endregion
+
+        #region GenusAllocationsHeader
+        static string GenusAllocationsHeader()
+        {
+            return "Group, Category, Qty Del,$ Del,$ Del Retail, Qty Sold,$ Sold,$ Sold Retail, Qty On Hand, Sell Thru % $$$,Sell Thru % Units, Record Ignored?, Eligible To Ship, Allocated Units";
+        }
+        #endregion
+
+        #region CategorySizeAllocationsHeader
+        static string CategorySizeAllocationsHeader()
+        {
+            return "Group, Category, Qty Del,$ Del,$ Del Retail, Qty Sold,$ Sold,$ Sold Retail, Qty On Hand, Sell Thru % $$$,Sell Thru % Units, Record Ignored?, Eligible To Ship, Allocated Units";
+        }
+        #endregion
+
         #region Helper methods
         private static string SalesFilePath(int year)
         {
@@ -535,6 +587,18 @@ namespace Cottage_Gardens_Analysis
                 sw.WriteLine(message);
             }
         }
+
+
+        #region OutputItemAllocation
+        public static void OutputItemAllocation(string message)
+        {
+            using (StreamWriter sw = File.AppendText(Path.Combine(outputPath, "Item Allocations.CSV")))
+            {
+                sw.WriteLine(message);
+            }
+        }
+        #endregion
+
         #endregion
 
 

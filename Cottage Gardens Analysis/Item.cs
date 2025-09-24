@@ -2,7 +2,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
+using System.Net;
+using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,6 +17,7 @@ namespace Cottage_Gardens_Analysis
     {
         public string Nbr { get; set; }
         public string Desc { get; set; }
+        public string Size { get; set; }
         public GenusSize GenusSize { get; set; }
         public Group Group { get; set; }
         public string Tag { get; set; }
@@ -30,7 +34,7 @@ namespace Cottage_Gardens_Analysis
         private double?[] _totalSold = new double?[Program.HistoryYears.Length];
 
         // Item, Item Description, Size,    Inactive, Category,    Tag Code,    Program, Zone,    GROUP, GENUS SIZE, GENUS
-        public Item(string nbr, string desc, GenusSize genusSize, Group group, string tag, string program, byte zone, int multiple)
+        public Item(string nbr, string desc, string size, GenusSize genusSize, Group group, string tag, string program, byte zone, int multiple)
         {
             Nbr = nbr;
             Desc = desc;
@@ -173,6 +177,85 @@ namespace Cottage_Gardens_Analysis
                 }
             }
             return _totalSold[index] == null ? 0 : _totalSold[index].Value;
+        }
+
+        public static string ItemHeader
+        {
+            get
+            {
+                return ",Item Code,Item Description, Size, Genus, Group,Category,  Zone";
+            }
+        }
+
+        public string ItemDetail
+        {
+            get
+            {
+                return "," + Nbr + "," + Desc + "," + Size + "," + GenusSize.Genus.Name +"," + Group.Name + "," + Group.Cat.Name +  "," + Zone;
+            }
+        }
+
+
+
+        
+        public static string AllocationHeader
+        {
+            get
+            {
+                return ", Eligible To Ship, Suggested Allocation Units";
+            }
+        }
+
+        public string AllocationDetail(Store store, int allocationUnits)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(",");
+            sb.Append( DoNotShip == null || !DoNotShip.Contains(store));
+            sb.Append(",");
+            sb.Append(allocationUnits);
+            return sb.ToString();
+        }
+
+        public string AllocationDetail()
+        {
+            return ",,";
+        }
+
+        public void Output()
+        {
+            if (Benchmark != null)
+            {
+                foreach (var kvp in Benchmark)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append(kvp.Key.StoreDetail);
+                    sb.Append(ItemDetail);
+                    sb.Append(kvp.Value.BenchmarkDetail);
+                    if (Allocation != null && Allocation.TryGetValue(kvp.Key, out var allocatedUnits))
+                    {
+                        sb.Append(AllocationDetail(kvp.Key, allocatedUnits));
+                    }
+                    else
+                    {
+                        sb.Append(AllocationDetail());
+                    }
+                    for (int i = 0; i < Program.HistoryYears.Length; i++)
+                    {
+                        if (History[i] == null)
+                        {
+                            sb.Append(Metrics.NullHistoryDetail);
+                        }
+                        else
+                        {
+                            if (History[i].TryGetValue(kvp.Key, out Metrics metrics))
+                            {
+                                sb.Append(metrics.HistoryDetail);
+                            }
+                        }
+                    }
+                    Program.OutputItemAllocation(sb.ToString());
+                }
+            }
         }
 
         public override int GetHashCode()
