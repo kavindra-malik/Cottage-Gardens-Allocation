@@ -307,11 +307,9 @@ namespace Cottage_Gardens_Analysis
                             }
                             for (int i = offset; i < fields.Length; i++)
                             {
-                                int count = 0;
                                 if (!string.IsNullOrEmpty(fields[0]) && string.Equals(fields[i].Trim(), "N", StringComparison.OrdinalIgnoreCase) && i < dnsSpecs.Count + offset)
                                 {
                                     dnsSpecs[i - offset].AddStore(store);
-                                    count++;
                                 }
                             }
                         }

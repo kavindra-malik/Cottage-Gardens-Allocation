@@ -95,6 +95,18 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
+        public void AddPreAallocated(Dictionary<Store, double> keyValuePairs)
+        {
+            foreach (var kvp in keyValuePairs)
+            {
+                if (!Index.ContainsKey(kvp.Key))
+                {
+                    Index.Add(kvp.Key, kvp.Value);
+                }
+            }
+            NormalizeIndex();
+        }
+
         public void NormalizeIndex(double totalIndex = 1)
         {
             double sum = 0;
