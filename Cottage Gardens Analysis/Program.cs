@@ -480,6 +480,7 @@ namespace Cottage_Gardens_Analysis
                                 }
                                 item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
                                 item.Group.HasHistory[historyIndex.Value] = true;
+                                item.Group.Cat.HasHistory[historyIndex.Value] = true;
                             }
                             else
                             {

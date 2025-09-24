@@ -49,7 +49,7 @@ namespace Cottage_Gardens_Analysis
             {
                 Dictionary<Store, DoNotShipItems> dnsItemsByStore = new Dictionary<Store, DoNotShipItems>();
 
-                foreach (var item in Items.Values)
+                foreach (var item in Items.Values.Where(x => x.DoNotShip != null))
                 {
                     IEnumerable<Store> storeDns = allocationSet.Intersect(item.DoNotShip);
                     foreach (Store store in storeDns)
@@ -84,6 +84,7 @@ namespace Cottage_Gardens_Analysis
 
         private AllocationIndex GetCompositeIndex(Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet)
         {
+            double groupHistoryWeight = 0;
             AllocationIndex currentIndex = null;
             for (int i = Program.HistoryYears.Length - 1; i >= 0; i--)
             {
@@ -99,8 +100,15 @@ namespace Cottage_Gardens_Analysis
                         currentIndex = new AllocationIndex(currentIndex, index);
                     }
                 }
+                groupHistoryWeight += i > 0 ? 0.2 : 0.4;
             }
-            return currentIndex;
+            AllocationIndex categoryIndex = Cat.Index;
+            categoryIndex = new AllocationIndex(categoryIndex, allocationSet);
+            if (currentIndex == null)
+            {
+                return categoryIndex;
+            }
+            return new AllocationIndex(currentIndex, categoryIndex, groupHistoryWeight);
         }
 
         public AllocationIndex AllocateYear(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet)
@@ -112,7 +120,7 @@ namespace Cottage_Gardens_Analysis
                 List<Store> mostConstrainedStores = GetMostConstrainedStores(index, dnsItemsByStore, preallocatedIndex);
                 while (mostConstrainedStores != null && mostConstrainedStores.Count > 0)
                 {
-                    AllocationIndex allocationIndex = new AllocationIndex(index, this, allocationSet, dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items, preallocatedIndex, totalIndex);
+                    AllocationIndex allocationIndex = new AllocationIndex(index, Items.Values, allocationSet, dnsItemsByStore[mostConstrainedStores.FirstOrDefault()].Items, preallocatedIndex, totalIndex);
                     foreach (Store store in mostConstrainedStores)
                     {
                         if (allocationIndex.Index.TryGetValue(store, out double value))
@@ -124,11 +132,11 @@ namespace Cottage_Gardens_Analysis
                     mostConstrainedStores = GetMostConstrainedStores(index, dnsItemsByStore, preallocatedIndex);
 
                 }
-                return new AllocationIndex(index, this, allocationSet, null, preallocatedIndex, totalIndex);
+                return new AllocationIndex(index, Items.Values, allocationSet, null, preallocatedIndex, totalIndex);
             }
             else
             {
-                return new AllocationIndex(index, this, allocationSet);
+                return new AllocationIndex(index, Items.Values, allocationSet);
             }
         }
 

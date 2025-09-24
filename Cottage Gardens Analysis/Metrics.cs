@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -62,7 +63,11 @@ namespace Cottage_Gardens_Analysis
         {
             get
             {
-                return (DollarDelivered + DollarSold) / 2;
+                if (DollarDelivered + DollarSold > 50000)
+                {
+                    Debug.WriteLine("Look : DollarDelivered = " + DollarDelivered + "DollarSold = "+ DollarSold);
+                }
+                return (DollarDelivered + DollarSold) / 2000;
             }
         }
     }

@@ -108,7 +108,7 @@ namespace Cottage_Gardens_Analysis
                 {
                     foreach (var kvp in Benchmark)
                     {
-                        if (DoNotShip == null || (!DoNotShip.Contains(kvp.Key) && !kvp.Value.Ignore))
+                        if ((DoNotShip == null || !DoNotShip.Contains(kvp.Key)) && !kvp.Value.Ignore)
                         {
                             set.Add(kvp.Key);
                         }
@@ -128,9 +128,9 @@ namespace Cottage_Gardens_Analysis
                     _totalQty = 0;
                     if (Benchmark != null)
                     {
-                        foreach (KeyValuePair<Store, Metrics> kvp in Benchmark)
+                        foreach (KeyValuePair<Store, Metrics> kvp in Benchmark.Where(x => !x.Value.Ignore))
                         {
-                            if (!DoNotShip.Contains(kvp.Key))
+                            if ((DoNotShip == null || !DoNotShip.Contains(kvp.Key)) && !kvp.Value.Ignore)
                             {
                                 _totalQty += kvp.Value.QtyDelivered;
                             }
