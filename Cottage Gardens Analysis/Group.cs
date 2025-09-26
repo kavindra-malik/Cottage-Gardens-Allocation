@@ -68,11 +68,6 @@ namespace Cottage_Gardens_Analysis
                     {
                         item.Allocate(index);
                     }
-                    else
-                    {
-                        item.InsufficientHistory = true;
-                    }
-                    item.Output();
                 }
 
             }
@@ -200,7 +195,7 @@ namespace Cottage_Gardens_Analysis
                                 }
                                 else
                                 {
-                                    History [i][kvp.Key].Add(kvp.Value);
+                                    History[i][kvp.Key].Add(kvp.Value);
                                 }
                             }
                         }

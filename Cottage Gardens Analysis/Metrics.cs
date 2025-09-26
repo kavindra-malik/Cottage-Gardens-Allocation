@@ -56,6 +56,13 @@ namespace Cottage_Gardens_Analysis
                 return (QtyDelivered >= 20 && QtySold == 0) || QtyDelivered == 0;
             }
         }
+        public bool Valid
+        {
+            get
+            {
+                return (QtyDelivered >= 2 && QtySold > 2) && DollarSold > 20;
+            }
+        }
 
         public double Performance
         {
@@ -99,7 +106,29 @@ namespace Cottage_Gardens_Analysis
                     sb.Append(',');
                     sb.Append(Program.HistoryYears[year] + " - Dollar SellThru %");
                     sb.Append(',');
-                    sb.Append(year + " - Unit SellThru %");
+                    sb.Append(Program.HistoryYears[year] + " - Unit SellThru %");
+                }
+                for (int year = 0; year < Program.HistoryYears.Length; year++)
+                {
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Delivered");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Sold");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Dollar SellThru %");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Unit SellThru %");
+                }
+                for (int year = 0; year < Program.HistoryYears.Length; year++)
+                {
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Category Dollar Delivered");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Category Dollar Sold");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Category Dollar SellThru %");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Category Unit SellThru %");
                 }
                 return sb.ToString();
             }
@@ -116,7 +145,7 @@ namespace Cottage_Gardens_Analysis
                 sb.Append(DollarSold.ToString());
                 sb.Append(',');
                 sb.Append(DollarSellThruPercent);
-                sb.Append("%,");
+                sb.Append("%");
                 sb.Append(',');
                 sb.Append(UnitSellThruPercent);
                 sb.Append("%");

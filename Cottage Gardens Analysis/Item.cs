@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ namespace Cottage_Gardens_Analysis
 {
     public class Item : IEquatable<Item>
     {
+        public enum ConfidenceLevel { No, Low, Medium, High }
         public string Nbr { get; set; }
         public string Desc { get; set; }
         public string Size { get; set; }
@@ -29,6 +31,9 @@ namespace Cottage_Gardens_Analysis
         public HashSet<Store> DoNotShip { get; set; }
         public Dictionary<Store, int> Allocation { get; set; }
         public bool InsufficientHistory { get; set; }
+        public bool[] ValidHistory { get; set; }
+        private HashSet<Store> _TargetStoreSet;
+
 
         private int? _totalQty;
         private double?[] _totalSold = new double?[Program.HistoryYears.Length];
@@ -47,6 +52,7 @@ namespace Cottage_Gardens_Analysis
             History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             DoNotShip = null;
             InsufficientHistory = false;
+            ValidHistory = new bool[Program.HistoryYears.Length];
         }
 
         public void UpdateDoNotShip(HashSet<Store> doNotShip)
@@ -57,49 +63,126 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public void Allocate(AllocationIndex index)
+        public void AssessHistory()
         {
-            // Store-specific allocation index
-            HashSet<Store> targetSet = TargetStoreSet;
-            Dictionary<Store, double> storeIndex = index.Index.Where(x => targetSet.Contains(x.Key)).ToDictionary(x => x.Key, x => x.Value);
-            if (storeIndex.Count < index.Index.Count)
+            for (int i = 0; i < Program.HistoryYears.Length; i++)
             {
-                double sum = 0;
-                foreach (KeyValuePair<Store, double> kvp in storeIndex)
+                if (History[i] != null)
                 {
-                    sum += kvp.Value;
-                }
-                foreach (Store store in new List<Store>(storeIndex.Keys))
-                {
-                    storeIndex[store] /= sum;
+                    var validData = from x in History[i] where TargetStoreSet.Contains(x.Key) && !x.Value.Ignore && x.Value.Valid && (DoNotShip == null || !DoNotShip.Contains(x.Key)) select x;
+                    Debug.WriteLine(validData.Count());
+                    ValidHistory[i] = validData.Count() >= 0.75 * Benchmark.Count;
                 }
             }
-            // Allocate 
-            Allocation = new Dictionary<Store, int>();
-            int totalQty = TotalQty;
-            List<StoreResidual> residuals = new List<StoreResidual>();
-            int totalAllocated = 0;
-            foreach (KeyValuePair <Store, double> kvp in storeIndex)
+        }
+
+        public double ItemHistoryWeight
+        {
+            get
             {
-                int floor = Multiple * (int)Math.Floor(totalQty * kvp.Value / Multiple);
-                double residual = totalQty * kvp.Value - floor;
-                Allocation.Add(kvp.Key, floor);
-                totalAllocated += floor;
-                residuals.Add(new StoreResidual(kvp.Key, residual));
-            }
-            if (totalAllocated < TotalQty) 
-            {
-                residuals.Sort();
-                
-                for (int i = 0; i < residuals.Count; i++)
+
+                double weight = 0;
+                for (int i = 0; i < Program.HistoryYears.Length; i++)
                 {
-                    Allocation[residuals[i].Store] += Multiple;
-                    totalAllocated += Multiple;
-                    if (totalAllocated == totalQty)
+                    if (ValidHistory[i])
                     {
-                        break;
+                        weight += 0.11;
                     }
                 }
+                return weight;
+            }
+        }
+
+        public void Allocate(AllocationIndex index)
+        {
+            if (Nbr == "13HEM3SDO")
+            {
+                Debug.WriteLine("Stop");
+                foreach (var kvp in Benchmark)
+                {
+                    Debug.WriteLine(kvp.Key.Nbr + "," + kvp.Value.Ignore + "," + (DoNotShip == null));
+                }
+
+            }
+            AssessHistory();
+            if (TargetStoreSet != null && TargetStoreSet.Count > 0)
+            {
+                double itemWeight = ItemHistoryWeight;
+                Dictionary<Store, double> storeIndex = Program.Projection(index.Index, TargetStoreSet);
+
+                if (itemWeight > 0)
+                {
+                    Dictionary<Store, double> itemIndex = ItemIndex;
+                    storeIndex = Program.CombineIndex(itemIndex, storeIndex, itemWeight);
+                }
+
+                // Allocate 
+                Allocation = new Dictionary<Store, int>();
+                int totalQty = TotalQty;
+                List<StoreResidual> residuals = new List<StoreResidual>();
+                int totalAllocated = 0;
+                foreach (KeyValuePair<Store, double> kvp in storeIndex)
+                {
+                    int floor = Multiple * (int)Math.Floor(totalQty * kvp.Value / Multiple);
+                    double residual = totalQty * kvp.Value - floor;
+                    Allocation.Add(kvp.Key, floor);
+                    totalAllocated += floor;
+                    residuals.Add(new StoreResidual(kvp.Key, residual));
+                }
+                if (totalAllocated < TotalQty)
+                {
+                    residuals.Sort();
+
+                    for (int i = 0; i < residuals.Count; i++)
+                    {
+                        Allocation[residuals[i].Store] += Multiple;
+                        totalAllocated += Multiple;
+                        if (totalAllocated == totalQty)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        public Dictionary<Store, double> ItemIndex
+        {
+            get
+            {
+                Dictionary<Store, double> combinedIndex = null;
+                int count = 0;
+                for (int i = 0; i < Program.HistoryYears.Length; i++) 
+                {
+                    if (ValidHistory[i])
+                    {
+                        double sum = 0;
+                        Dictionary<Store, double> index = new Dictionary<Store, double>();
+                        foreach (var kvp in History[i].Where(x => !x.Value.Ignore && TargetStoreSet.Contains(x.Key)))
+                        {
+                            index.Add(kvp.Key, kvp.Value.Performance);
+                            sum += kvp.Value.Performance;
+                        }
+                        if (index.Count > 0)
+                        {
+                            foreach (var x in new List<Store>(index.Keys))
+                            {
+                                index[x] /= sum;
+                            }
+                            if (combinedIndex == null)
+                            {
+                                combinedIndex = index;
+                                count++;
+                            }
+                            else
+                            {
+                                double weight = count == 1 ? 0.5 : 0.67;
+                                combinedIndex = Program.CombineIndex(combinedIndex, index, weight);
+                            }
+                        }
+                    }
+                }
+                return combinedIndex;
             }
         }
 
@@ -107,19 +190,22 @@ namespace Cottage_Gardens_Analysis
         {
             get
             {
-                HashSet<Store> set = new HashSet<Store>();
-                if (Benchmark != null)
+                if (_TargetStoreSet == null)
                 {
-                    foreach (var kvp in Benchmark)
+                    _TargetStoreSet = new HashSet<Store>();
+                    if (Benchmark != null)
                     {
-                        if ((DoNotShip == null || !DoNotShip.Contains(kvp.Key)) && !kvp.Value.Ignore)
+                        foreach (var kvp in Benchmark)
                         {
-                            set.Add(kvp.Key);
+                            if ((DoNotShip == null || !DoNotShip.Contains(kvp.Key)) && !kvp.Value.Ignore)
+                            {
+                                _TargetStoreSet.Add(kvp.Key);
+                            }
                         }
                     }
                 }
 
-                return set;
+                return _TargetStoreSet;
             }
         }
 
@@ -196,8 +282,6 @@ namespace Cottage_Gardens_Analysis
         }
 
 
-
-        
         public static string AllocationHeader
         {
             get
@@ -248,6 +332,34 @@ namespace Cottage_Gardens_Analysis
                         else
                         {
                             if (History[i].TryGetValue(kvp.Key, out Metrics metrics))
+                            {
+                                sb.Append(metrics.HistoryDetail);
+                            }
+                        }
+                    }
+                    for (int i = 0; i < Program.HistoryYears.Length; i++)
+                    {
+                        if (Group.History[i] == null)
+                        {
+                            sb.Append(Metrics.NullHistoryDetail);
+                        }
+                        else
+                        {
+                            if (Group.History[i].TryGetValue(kvp.Key, out Metrics metrics))
+                            {
+                                sb.Append(metrics.HistoryDetail);
+                            }
+                        }
+                    }
+                    for (int i = 0; i < Program.HistoryYears.Length; i++)
+                    {
+                        if (Group.Cat.History[i] == null)
+                        {
+                            sb.Append(Metrics.NullHistoryDetail);
+                        }
+                        else
+                        {
+                            if (Group.Cat.History[i].TryGetValue(kvp.Key, out Metrics metrics))
                             {
                                 sb.Append(metrics.HistoryDetail);
                             }

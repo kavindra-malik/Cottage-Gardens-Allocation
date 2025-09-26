@@ -13,6 +13,8 @@ namespace Cottage_Gardens_Analysis
         public Dictionary<string, Genus> Genuses { get; set; }
         public Dictionary<string, Group> Groups { get; set; }
         public bool[] HasHistory { get; set; }
+        public Dictionary<Store, Metrics>[] History { get; set; }
+
 
         private AllocationIndex _allocationIndex;
         public Category(string name)
@@ -56,6 +58,42 @@ namespace Cottage_Gardens_Analysis
                     }
                 }
                 return _allocationIndex;
+            }
+        }
+
+        public void InitHistory()
+        {
+            if (History == null)
+            {
+
+                History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
+                foreach (Group group in Groups.Values)
+                {
+                    if (group.History != null)
+                    {
+                        for (int i = 0; i < Program.HistoryYears.Length; i++)
+                        {
+                            if (group.History[i] != null)
+                            {
+                                foreach (var kvp in group.History[i])
+                                {
+                                    if (History[i] == null)
+                                    {
+                                        History[i] = new Dictionary<Store, Metrics>();
+                                    }
+                                    if (!History[i].ContainsKey(kvp.Key))
+                                    {
+                                        History[i][kvp.Key] = new Metrics(kvp.Value);
+                                    }
+                                    else
+                                    {
+                                        History[i][kvp.Key].Add(kvp.Value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

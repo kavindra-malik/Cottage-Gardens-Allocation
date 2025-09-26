@@ -56,43 +56,12 @@ namespace Cottage_Gardens_Analysis
 
         public AllocationIndex(AllocationIndex index1, AllocationIndex index2, double index1Weight = 0.5)
         {
-            double sum = 0;
-            Index = new Dictionary<Store, double>();
-            foreach (KeyValuePair<Store, double> kvp in index1.Index)
-            {
-                if (index2.Index.ContainsKey(kvp.Key))
-                {
-                    sum += Index[kvp.Key] = kvp.Value * index1Weight + index2.Index[kvp.Key] * (1 - index1Weight);
-                }
-                else
-                {
-                    sum += Index[kvp.Key] = 2* kvp.Value;
-                }
-            }
-            var index2NotInIndex1 = from x in index2.Index.Keys where !index1.Index.ContainsKey(x) select x;
-            foreach (var x in index2NotInIndex1)
-            {
-                sum += Index[x] = 2 * index2.Index[x];
-            }
-            foreach (var x in new List<Store>(Index.Keys))
-            {
-                Index[x] /= sum;
-            }
+            Index = Program.CombineIndex(index1.Index, index2.Index, index1Weight);
         }
 
         public AllocationIndex(AllocationIndex index, HashSet<Store> allocationSet)
         {
-            Index = new Dictionary<Store, double>();
-            double sum = 0;
-            foreach (var kvp in index.Index.Where(k => allocationSet.Contains(k.Key)))
-            {
-                Index.Add(kvp.Key, kvp.Value);
-                sum += kvp.Value;
-            }
-            foreach (var x in new List<Store>(Index.Keys))
-            {
-                Index[x] /= sum;
-            }
+            Index = Program.Projection(index.Index, allocationSet);
         }
 
         public void AddPreAallocated(Dictionary<Store, double> keyValuePairs)

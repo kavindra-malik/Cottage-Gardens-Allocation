@@ -38,7 +38,7 @@ namespace Cottage_Gardens_Analysis
         {
             get
             {
-                return Market + "," + Nbr + "," + Name + "," + City + "," + State + "," + WeatherZone;
+                return Market + "," + Nbr + "," + Name + "," + City + "," + State + "," + WeatherZone + "," + Rank;
             }
         }
 
@@ -46,7 +46,7 @@ namespace Cottage_Gardens_Analysis
         {
             get
             {
-                return "Market, Store Nbr, Store Name, City, State,Weather Zone";
+                return "Market, Store Nbr, Store Name, City, State,Weather Zone, Rank";
             }
         }
 

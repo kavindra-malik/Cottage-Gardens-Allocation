@@ -8,6 +8,7 @@ using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -65,6 +66,7 @@ namespace Cottage_Gardens_Analysis
             {
                 File.Delete(Path.Combine(outputPath, "Item Allocations.CSV"));
             }
+
             OutputItemAllocationsHeader();
             foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
@@ -72,7 +74,16 @@ namespace Cottage_Gardens_Analysis
                 group.AllocateGroupItems();
 //                Debug.WriteLine("Done Allocating Group: " + group.Name);
             }
-
+            Category cat = null;
+            foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
+            {
+                if (cat == null || cat != item.Group.Cat)
+                {
+                    cat = item.Group.Cat;
+                    cat.InitHistory();
+                }
+                item.Output();
+            }
         }
 
         #region
@@ -518,7 +529,7 @@ namespace Cottage_Gardens_Analysis
                                 item.Benchmark = new Dictionary<Store, Metrics>();
                             }
                             item.Benchmark.Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
-                            if (item.TargetStoreSet.Count  > 0)
+                            if (!((qtyDelivered >= 20 && qtySold == 0) || qtyDelivered == 0))
                             {
                                 item.Group.HasBenchmark = true;
                             }
@@ -596,6 +607,53 @@ namespace Cottage_Gardens_Analysis
             {
                 sw.WriteLine(message);
             }
+        }
+        #endregion
+
+        #region Projection
+        public static Dictionary<Store, double> Projection(Dictionary<Store, double> index, HashSet<Store> allocationSet)
+        {
+            Dictionary<Store, double> newIndex = new Dictionary<Store, double>();
+            double sum = 0;
+            foreach (var kvp in index.Where(k => allocationSet.Contains(k.Key)))
+            {
+                newIndex.Add(kvp.Key, kvp.Value);
+                sum += kvp.Value;
+            }
+            foreach (var x in new List<Store>(newIndex.Keys))
+            {
+                newIndex[x] /= sum;
+            }
+            return newIndex;
+        }
+        #endregion
+
+        #region CombineIndex
+        public static Dictionary<Store, double> CombineIndex(Dictionary<Store, double> index1, Dictionary<Store, double> index2, double weight)
+        {
+            double sum = 0;
+            Dictionary<Store, double> newIndex = new Dictionary<Store, double>();
+            foreach (KeyValuePair<Store, double> kvp in index1)
+            {
+                if (index2.ContainsKey(kvp.Key))
+                {
+                    sum += newIndex[kvp.Key] = kvp.Value * weight + index2[kvp.Key] * (1 - weight);
+                }
+                else
+                {
+                    sum += newIndex[kvp.Key] = kvp.Value;
+                }
+            }
+            var index2NotInIndex1 = from x in index2.Keys where !index1.ContainsKey(x) select x;
+            foreach (var x in index2NotInIndex1)
+            {
+                sum += newIndex[x] = index2[x];
+            }
+            foreach (var x in new List<Store>(newIndex.Keys))
+            {
+                newIndex[x] /= sum;
+            }
+            return newIndex;
         }
         #endregion
 
