@@ -14,6 +14,9 @@ namespace Cottage_Gardens_Analysis
         public bool[] HasHistory { get; set; }
         public bool HasBenchmark { get; set; }
         public Dictionary<Store, Metrics>[] History { get; set; }
+        public Dictionary<Store, Metrics> Benchmark { get; set; }
+        public Dictionary<Store, Allocation> Allocations { get; set; }
+
 
         public Dictionary<string, Item> Items { get; set; }
 
@@ -200,9 +203,120 @@ namespace Cottage_Gardens_Analysis
                             }
                         }
                     }
+
+                    foreach (var kvp in item.Benchmark.Where(x => !x.Value.Ignore && allocationSet.Contains(x.Key)))
+                    {
+                        if (Benchmark == null)
+                        {
+                            Benchmark = new Dictionary<Store, Metrics>();
+                        }
+                        if (!Benchmark.ContainsKey(kvp.Key))
+                        {
+                            Benchmark[kvp.Key] = new Metrics(kvp.Value);
+                        }
+                        else
+                        {
+                            Benchmark[kvp.Key].Add(kvp.Value);
+                        }
+                    }
+
                 }
             }
         }
+
+        public void InitAllocation()
+        {
+            Allocations = new Dictionary<Store, Allocation>();
+            foreach (Item item in Items.Values)
+            {
+                if (item.Allocations != null)
+                {
+                    foreach (var kvp in item.Allocations)
+                    {
+                        if (!Allocations.ContainsKey(kvp.Key))
+                        {
+                            Allocations[kvp.Key] = new Allocation(kvp.Value);
+                        }
+                        else
+                        {
+                            Allocations[kvp.Key].Add(kvp.Value);
+                        }
+                    }
+                }
+            }
+        }
+
+
+        public static string GroupHeader
+        {
+            get
+            {
+                return ",Group, Category";
+            }
+        }
+
+        public string GroupDetail
+        {
+            get
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append(",");
+                sb.Append(Name);
+                sb.Append(",");
+                sb.Append(Cat.Name); 
+                return sb.ToString();
+            }
+        }
+
+        public static string AllocationHeader
+        {
+            get
+            {
+                return ",Suggested Allocation Units, Suggested Allocation Dollars";
+            }
+        }
+
+        public void Output()
+        {
+            InitAllocation();
+            if (Benchmark != null)
+            {
+                foreach (var kvp in Benchmark)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append(kvp.Key.StoreDetail);
+                    sb.Append(GroupDetail);
+                    sb.Append(kvp.Value.GroupBenchmarkDetail);
+                    if (Allocations != null && Allocations.TryGetValue(kvp.Key, out var allocation))
+                    {
+                        sb.Append(",");
+                        sb.Append(allocation.Qty);
+                        sb.Append(",");
+                        sb.Append(allocation.Dollars);
+                    }
+                    else
+                    {
+                        sb.Append(",,");
+                    }
+                    for (int i = 0; i < Program.HistoryYears.Length; i++)
+                    {
+                        if (History[i] == null)
+                        {
+                            sb.Append(Metrics.NullHistoryDetail);
+                        }
+                        else
+                        {
+                            if (History[i].TryGetValue(kvp.Key, out Metrics metrics))
+                            {
+                                sb.Append(metrics.HistoryDetail);
+                            }
+                        }
+                    }
+                    Program.OutputGroupAllocation(sb.ToString());
+                }
+            }
+        }
+
 
         public bool Equals(Group other)
         {

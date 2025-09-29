@@ -134,6 +134,37 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
+        public static string GroupHistoryHeader
+        {
+            get
+            {
+                StringBuilder sb = new StringBuilder();
+                for (int year = 0; year < Program.HistoryYears.Length; year++)
+                {
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Dollar Delivered");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Dollar Sold");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Dollar SellThru %");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Unit SellThru %");
+                }
+                for (int year = 0; year < Program.HistoryYears.Length; year++)
+                {
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Delivered");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Sold");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Dollar SellThru %");
+                    sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + " - Group Unit SellThru %");
+                }
+                return sb.ToString();
+            }
+        }
+
         public string HistoryDetail
         {
             get
@@ -166,6 +197,15 @@ namespace Cottage_Gardens_Analysis
             get
             {
                 return ", Qty Delivered, Dollar Delivered, Dollar Delivered Retail, Qty Sold, Dollar Sold, Dollar Sold Retail, Dollar SellThru %, Unit SellThru %,Record Ignored?";
+
+            }
+        }
+
+        public static string GroupBenchmarkHeader
+        {
+            get
+            {
+                return ", Qty Delivered, Dollar Delivered, Dollar Delivered Retail, Qty Sold, Dollar Sold, Dollar Sold Retail, Dollar SellThru %, Unit SellThru %";
 
             }
         }
@@ -213,5 +253,44 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
+
+        public string GroupBenchmarkDetail
+        {
+            get
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append(',');
+                sb.Append(QtyDelivered.ToString());
+                sb.Append(',');
+                sb.Append(DollarDelivered.ToString());
+                sb.Append(',');
+                sb.Append(DollarDeliveredRetail.ToString());
+
+                sb.Append(',');
+                sb.Append(QtySold.ToString());
+                sb.Append(',');
+                sb.Append(DollarSold.ToString());
+                sb.Append(',');
+                sb.Append(DollarSoldRetail.ToString());
+
+                sb.Append(',');
+                sb.Append(DollarSellThruPercent);
+                sb.Append("%");
+
+                sb.Append(',');
+                sb.Append(UnitSellThruPercent);
+                sb.Append("%");
+
+                return sb.ToString();
+            }
+        }
+
+        public static string GroupNullBenchmarkDetail
+        {
+            get
+            {
+                return ",,,,,,,";
+            }
+        }
     }
 }
