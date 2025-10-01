@@ -14,6 +14,8 @@ namespace Cottage_Gardens_Analysis
         public Dictionary<string, Group> Groups { get; set; }
         public bool[] HasHistory { get; set; }
         public Dictionary<Store, Metrics>[] History { get; set; }
+        public Dictionary<Store, Metrics> Benchmark { get; set; }
+        public Dictionary<Store, Allocation> Allocations { get; set; }
 
 
         private AllocationIndex _allocationIndex;
@@ -91,6 +93,28 @@ namespace Cottage_Gardens_Analysis
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void InitAllocation()
+        {
+            Allocations = new Dictionary<Store, Allocation>();
+            foreach (Group group in Groups.Values)
+            {
+                if (group.Allocations != null)
+                {
+                    foreach (var kvp in group.Allocations)
+                    {
+                        if (!Allocations.ContainsKey(kvp.Key))
+                        {
+                            Allocations[kvp.Key] = new Allocation(kvp.Value);
+                        }
+                        else
+                        {
+                            Allocations[kvp.Key].Add(kvp.Value);
                         }
                     }
                 }

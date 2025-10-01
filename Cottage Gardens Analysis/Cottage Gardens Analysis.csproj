@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Aggregate.cs" />
     <Compile Include="AllocationIndex.cs" />
     <Compile Include="Allocation.cs" />
     <Compile Include="Category.cs" />

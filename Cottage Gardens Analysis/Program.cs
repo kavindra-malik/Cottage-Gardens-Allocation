@@ -40,6 +40,15 @@ namespace Cottage_Gardens_Analysis
         public static Dictionary<string, Group> Groups = new Dictionary<string, Group>();
         public static Dictionary<string, Item> Items = new Dictionary<string, Item>();
 
+        public static Dictionary<Store, Metrics>[] History { get; set; }
+        public static Dictionary<Store, Metrics> Benchmark { get; set; }
+        public static Dictionary<Store, Allocation> Allocations { get; set; }
+
+        public static Dictionary<string, Metrics>[] RankHistory { get; set; }
+        public static Dictionary<string, Metrics> RankBenchmark { get; set; }
+        public static Dictionary<string, Allocation> RankAllocations { get; set; }
+        public static string[] Ranks { get; set; }
+
 
         public static Dictionary<string, Dictionary<string, HashSet<int>>> DNS = new Dictionary<string, Dictionary<string, HashSet<int>>>();
         // Dictionary key is to be tested as initial substring in the item number
@@ -124,7 +133,7 @@ namespace Cottage_Gardens_Analysis
         #region ReadStoreRanking
         static void ReadStoreRanking()
         {
-
+            HashSet<string> ranks = new HashSet<string>();
             using (TextFieldParser csvParser = new TextFieldParser(storeRankingDataFile))
             {
                 csvParser.CommentTokens = new string[] { "#" };
@@ -160,8 +169,10 @@ namespace Cottage_Gardens_Analysis
                     string city = name.Substring(26, name.IndexOf(',') - 26);
                     string rank = fields[5].Trim();
                     Stores.Add(storeNbr, new Store(storeNbr, market, storeName, city, state, null, null, rank));
+                    ranks.Add(rank);
                 }
             }
+            Ranks = (from x in ranks orderby x select x).ToArray<string>();
         }
         #endregion
 
@@ -646,6 +657,82 @@ namespace Cottage_Gardens_Analysis
             return newIndex;
         }
         #endregion
+
+        #endregion
+
+        #region InitAllocation
+        public static void InitHistory()
+        {
+            if (History == null)
+            {
+                History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
+                foreach (Category cat in Categories.Values)
+                {
+                    if (cat.History != null)
+                    {
+                        for (int i = 0; i < Program.HistoryYears.Length; i++)
+                        {
+                            if (cat.History[i] != null)
+                            {
+                                foreach (var kvp in cat.History[i])
+                                {
+                                    if (History[i] == null)
+                                    {
+                                        History[i] = new Dictionary<Store, Metrics>();
+                                    }
+                                    if (!History[i].ContainsKey(kvp.Key))
+                                    {
+                                        History[i][kvp.Key] = new Metrics(kvp.Value);
+                                    }
+                                    else
+                                    {
+                                        History[i][kvp.Key].Add(kvp.Value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            RankHistory = new Dictionary<string, Metrics>[Program.HistoryYears.Length];
+        }
+        #endregion
+
+        #region InitAllocation
+        public static void InitAllocation()
+        {
+            Allocations = new Dictionary<Store, Allocation>();
+            foreach (Category cat in Categories.Values)
+            {
+                if (cat.Allocations != null)
+                {
+                    foreach (var kvp in cat.Allocations)
+                    {
+                        if (!Allocations.ContainsKey(kvp.Key))
+                        {
+                            Allocations[kvp.Key] = new Allocation(kvp.Value);
+                        }
+                        else
+                        {
+                            Allocations[kvp.Key].Add(kvp.Value);
+                        }
+                    }
+                }
+            }
+            RankAllocations = new Dictionary<string, Allocation>();
+            foreach (var kvp in Allocations)
+            {
+                if (!RankAllocations.TryGetValue(kvp.Key.Rank, out var allocation))
+                {
+                    RankAllocations[kvp.Key.Rank] = new Allocation(kvp.Value);
+                }
+                else
+                {
+                    RankAllocations[kvp.Key.Rank].Add(kvp.Value);
+                }
+            }
+        }
 
         #endregion
 

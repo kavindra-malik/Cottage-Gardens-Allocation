@@ -62,7 +62,7 @@ namespace Cottage_Gardens_Analysis
                         doNotShip.AddItem(item);
                     }
                 }
-                InitHistory(allocationSet);
+                InitHistoryAndBenchmark();
                 AllocationIndex index = GetCompositeIndex(dnsItemsByStore, allocationSet);
 
                 foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
@@ -100,7 +100,7 @@ namespace Cottage_Gardens_Analysis
                 groupHistoryWeight += i > 0 ? 0.2 : 0.4;
             }
             AllocationIndex categoryIndex = Cat.Index;
-            categoryIndex = new AllocationIndex(categoryIndex, allocationSet);
+            categoryIndex = new AllocationIndex(categoryIndex, allocationSet); 
             if (currentIndex == null)
             {
                 return categoryIndex;
@@ -175,7 +175,7 @@ namespace Cottage_Gardens_Analysis
             return null;
         }
 
-        public void InitHistory(HashSet<Store> allocationSet)
+        public void InitHistoryAndBenchmark()
         {
             History  = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             foreach (Item item in Items.Values)
@@ -186,7 +186,7 @@ namespace Cottage_Gardens_Analysis
                     {
                         if (item.History[i] != null)
                         {
-                            foreach (var kvp in item.History[i].Where(x => !x.Value.Ignore && allocationSet.Contains(x.Key)))
+                            foreach (var kvp in item.History[i].Where(x => !x.Value.Ignore))
                             {
                                 if (History [i] == null)
                                 {
@@ -204,7 +204,7 @@ namespace Cottage_Gardens_Analysis
                         }
                     }
 
-                    foreach (var kvp in item.Benchmark.Where(x => !x.Value.Ignore && allocationSet.Contains(x.Key)))
+                    foreach (var kvp in item.Benchmark.Where(x => !x.Value.Ignore))
                     {
                         if (Benchmark == null)
                         {
