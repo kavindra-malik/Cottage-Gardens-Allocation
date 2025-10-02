@@ -321,9 +321,9 @@ namespace Cottage_Gardens_Analysis
                 foreach (var kvp in Benchmark)
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append(kvp.Key.StoreDetail);
+                    sb.Append(kvp.Key.Detail);
                     sb.Append(ItemDetail);
-                    sb.Append(kvp.Value.BenchmarkDetail);
+                    sb.Append(kvp.Value.BenchmarkDetailShort);
                     if (Allocations != null && Allocations.TryGetValue(kvp.Key, out var allocatedUnits))
                     {
                         sb.Append(AllocationDetail(kvp.Key, allocatedUnits));
@@ -374,7 +374,7 @@ namespace Cottage_Gardens_Analysis
                             }
                         }
                     }
-                    Program.OutputItemAllocation(sb.ToString());
+                    Program.OutputLine(Program.OutputTypes.ItemStore, sb.ToString());
                 }
             }
         }

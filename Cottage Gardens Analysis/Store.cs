@@ -34,7 +34,7 @@ namespace Cottage_Gardens_Analysis
             WeatherZone = weatherZone;
         }
 
-        public string StoreDetail
+        public string Detail
         {
             get
             {
@@ -42,7 +42,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public static string StoreHeader
+        public static string Header
         {
             get
             {

@@ -32,6 +32,8 @@ namespace Cottage_Gardens_Analysis
         
 
         public enum SpecLevel { Category, Genus, GenusSize, Group, Item }
+        public enum OutputTypes { CompanyStore, CompanyRank, CategoryStore, CategoryRank, GroupStore, GroupRank, ItemStore, ItemRank }
+        public static Dictionary<OutputTypes, string> OutputFileNames { get; set; }
 
         public static Dictionary<int, Store> Stores = new Dictionary<int, Store>();
         public static Dictionary<string, Category> Categories = new Dictionary<string, Category>();
@@ -39,6 +41,7 @@ namespace Cottage_Gardens_Analysis
         public static Dictionary<string, GenusSize> GenusSizes = new Dictionary<string, GenusSize>();
         public static Dictionary<string, Group> Groups = new Dictionary<string, Group>();
         public static Dictionary<string, Item> Items = new Dictionary<string, Item>();
+        public static Company Company = new Company("Cottage Gardens, Inc.");
 
         public static Dictionary<Store, Metrics>[] History { get; set; }
         public static Dictionary<Store, Metrics> Benchmark { get; set; }
@@ -61,6 +64,7 @@ namespace Cottage_Gardens_Analysis
 
         static void Main()
         {
+            InitOutputFileNames();
             ReadStoreRanking();
             UpdateStoreGroupAndBuyer();
             ReadItemMaster();
@@ -71,64 +75,143 @@ namespace Cottage_Gardens_Analysis
             }
             ReadSales(BenchmarkYear);
 
-            if (File.Exists(Path.Combine(outputPath, "Item Allocations.CSV")))
+            foreach (string fileName in OutputFileNames.Values)
+            if (File.Exists(fileName))
             {
-                File.Delete(Path.Combine(outputPath, "Item Allocations.CSV"));
+                File.Delete(fileName);
             }
-
-            OutputItemAllocationsHeader();
+            
+            Company.InitHistoryAndBenchmark();
             foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
-//                Debug.WriteLine("Allocating Group: " + group.Name);
                 group.AllocateGroupItems();
-//                Debug.WriteLine("Done Allocating Group: " + group.Name);
             }
-            Category cat = null;
-            foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
-            {
-                if (cat == null || cat != item.Group.Cat)
-                {
-                    cat = item.Group.Cat;
-                    cat.InitHistory();
-                }
-                item.Output();
-            }
-            OutputGroupAllocationsHeader();
-            foreach (Group group in Groups.Values)
-            {
-                if (group.Benchmark != null && group.Benchmark.Count > 0)
-                {
-                    group.Output();
-                }
-            }
+            Company.InitAllocations();
+
+            Company.ProcessOutput(OutputTypes.ItemStore);
+            Company.ProcessOutput(OutputTypes.GroupStore);
+            Company.ProcessOutput(OutputTypes.CompanyStore);
+            Company.ProcessOutput(OutputTypes.CompanyRank);
         }
 
-        #region OutputItemAllocationsHeader
-        static void OutputItemAllocationsHeader()
+        #region InitOutputFileNames
+        static void InitOutputFileNames()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.Append(Store.StoreHeader);
-            sb.Append(Item.ItemHeader);
-            sb.Append(Metrics.BenchmarkHeader);
-            sb.Append(Item.AllocationHeader);
-            sb.Append(Metrics.HistoryHeader);
-            OutputItemAllocation(sb.ToString());
+            OutputFileNames = new Dictionary<OutputTypes, string>();
+            foreach (OutputTypes outputType in Enum.GetValues(typeof(OutputTypes)))
+            {
+                switch (outputType)
+                {
+                    case OutputTypes.ItemStore:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Item-Store Allocations.csv"));
+                        break;
+                    case OutputTypes.ItemRank:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Item-Rank Allocations.csv"));
+                        break;
+                    case OutputTypes.GroupStore:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Group-Store Allocations.csv"));
+
+                        break;
+                    case OutputTypes.GroupRank:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Group-Rank Allocations.csv"));
+                        break;
+                    case OutputTypes.CategoryStore:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Category-Store Allocations.csv"));
+                        break;
+                    case OutputTypes.CategoryRank:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Category-Rank Allocations.csv"));
+                        break;
+                    case OutputTypes.CompanyStore:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Company-Store Allocations.csv"));
+                        break;
+                    case OutputTypes.CompanyRank:
+                        OutputFileNames.Add(outputType, Path.Combine(outputPath, "Company-Rank Allocations.csv"));
+                        break;
+                }
+            }
         }
         #endregion
 
-        #region OutputGroupAllocationsHeader
-        static void OutputGroupAllocationsHeader()
+        #region OutputHeader
+        public static void OutputHeader(OutputTypes outputType)
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append(Store.StoreHeader);
-            sb.Append(Group.GroupHeader);
-            sb.Append(Metrics.GroupBenchmarkHeader);
-            sb.Append(Group.AllocationHeader);
-            sb.Append(Metrics.GroupHistoryHeader);
-            OutputGroupAllocation(sb.ToString());
+            switch (outputType)
+            {
+                case OutputTypes.ItemStore:
+                    sb.Append(Store.Header);
+                    sb.Append(Item.ItemHeader);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+                    sb.Append(Metrics.HistoryHeader("GROUP"));
+                    sb.Append(Metrics.HistoryHeader("CATEGORY"));
+                    break;
+                case OutputTypes.ItemRank:
+                    sb.Append("Rank");
+                    sb.Append(Item.ItemHeader);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+                    sb.Append(Metrics.HistoryHeader("GROUP"));
+                    sb.Append(Metrics.HistoryHeader("CATEGORY"));
+                    break;
+
+                case OutputTypes.GroupStore:
+                    sb.Append(Store.Header);
+                    sb.Append(Group.Header);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+
+                    break;
+                case OutputTypes.GroupRank:
+                    sb.Append("Rank");
+                    sb.Append(Group.Header);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+
+                    break;
+
+                case OutputTypes.CategoryStore:
+                    sb.Append(Store.Header);
+                    sb.Append(Category.Header);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+
+                    break;
+                case OutputTypes.CategoryRank:
+                    sb.Append("Rank");
+                    sb.Append(Category.Header);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+
+
+                    break;
+
+                case OutputTypes.CompanyStore:
+                    sb.Append(Store.Header);
+                    sb.Append(Company.Header);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+
+                    break;
+                case OutputTypes.CompanyRank:
+                    sb.Append("Rank");
+                    sb.Append(Company.Header);
+                    sb.Append(Metrics.BenchmarkHeaderShort);
+                    sb.Append(Allocation.Header);
+                    sb.Append(Metrics.HistoryHeader());
+
+                    break;
+            }
+            OutputLine(outputType, sb.ToString());
         }
         #endregion
-
 
         #region ReadStoreRanking
         static void ReadStoreRanking()
@@ -591,25 +674,16 @@ namespace Cottage_Gardens_Analysis
         }
 
 
-        #region OutputItemAllocation
-        public static void OutputItemAllocation(string message)
+        #region OutputLine
+        public static void OutputLine(OutputTypes outputType, string message)
         {
-            using (StreamWriter sw = File.AppendText(Path.Combine(outputPath, "Item Allocations.CSV")))
+            using (StreamWriter sw = File.AppendText(OutputFileNames[outputType]))
             {
                 sw.WriteLine(message);
             }
         }
         #endregion
 
-        #region OutputGroupAllocation
-        public static void OutputGroupAllocation(string message)
-        {
-            using (StreamWriter sw = File.AppendText(Path.Combine(outputPath, "Group Allocations.CSV")))
-            {
-                sw.WriteLine(message);
-            }
-        }
-        #endregion
 
         #region Projection
         public static Dictionary<Store, double> Projection(Dictionary<Store, double> index, HashSet<Store> allocationSet)

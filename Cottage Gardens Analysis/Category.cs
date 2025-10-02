@@ -7,15 +7,12 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    public class Category : IEquatable<Category>
+    public class Category : Aggregate, IEquatable<Category>
     {
         public string Name { get; set; }
         public Dictionary<string, Genus> Genuses { get; set; }
         public Dictionary<string, Group> Groups { get; set; }
         public bool[] HasHistory { get; set; }
-        public Dictionary<Store, Metrics>[] History { get; set; }
-        public Dictionary<Store, Metrics> Benchmark { get; set; }
-        public Dictionary<Store, Allocation> Allocations { get; set; }
 
 
         private AllocationIndex _allocationIndex;
@@ -63,61 +60,20 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public void InitHistory()
+        public void InitHistoryAndBenchmark()
         {
-            if (History == null)
+            foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
-
-                History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
-                foreach (Group group in Groups.Values)
-                {
-                    if (group.History != null)
-                    {
-                        for (int i = 0; i < Program.HistoryYears.Length; i++)
-                        {
-                            if (group.History[i] != null)
-                            {
-                                foreach (var kvp in group.History[i])
-                                {
-                                    if (History[i] == null)
-                                    {
-                                        History[i] = new Dictionary<Store, Metrics>();
-                                    }
-                                    if (!History[i].ContainsKey(kvp.Key))
-                                    {
-                                        History[i][kvp.Key] = new Metrics(kvp.Value);
-                                    }
-                                    else
-                                    {
-                                        History[i][kvp.Key].Add(kvp.Value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                AddHistory(group.History);
+                AddBenchmark(group.Benchmark);
             }
         }
 
         public void InitAllocation()
         {
-            Allocations = new Dictionary<Store, Allocation>();
-            foreach (Group group in Groups.Values)
+            foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
             {
-                if (group.Allocations != null)
-                {
-                    foreach (var kvp in group.Allocations)
-                    {
-                        if (!Allocations.ContainsKey(kvp.Key))
-                        {
-                            Allocations[kvp.Key] = new Allocation(kvp.Value);
-                        }
-                        else
-                        {
-                            Allocations[kvp.Key].Add(kvp.Value);
-                        }
-                    }
-                }
+                AddAllocations(group.Allocations);
             }
         }
 
@@ -131,6 +87,14 @@ namespace Cottage_Gardens_Analysis
                     items = items.Concat(group.Items.Values);
                 }
                 return items;
+            }
+        }
+
+        public static string Header
+        {
+            get
+            {
+                return ",Cottage Gardens Inc.,Category";
             }
         }
 

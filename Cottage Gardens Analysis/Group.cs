@@ -7,16 +7,12 @@ using System.Threading.Tasks;
 
 namespace Cottage_Gardens_Analysis
 {
-    public class Group : IEquatable<Group>
+    public class Group : Aggregate, IEquatable<Group>
     {
         public Category Cat { get; set; }
         public string Name { get; set; }
         public bool[] HasHistory { get; set; }
         public bool HasBenchmark { get; set; }
-        public Dictionary<Store, Metrics>[] History { get; set; }
-        public Dictionary<Store, Metrics> Benchmark { get; set; }
-        public Dictionary<Store, Allocation> Allocations { get; set; }
-
 
         public Dictionary<string, Item> Items { get; set; }
 
@@ -37,7 +33,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        #region
+        #region AllocateGroupItems
         public void AllocateGroupItems()
         {
             HashSet<Store> allocationSet = new HashSet<Store>();
@@ -62,7 +58,6 @@ namespace Cottage_Gardens_Analysis
                         doNotShip.AddItem(item);
                     }
                 }
-                InitHistoryAndBenchmark();
                 AllocationIndex index = GetCompositeIndex(dnsItemsByStore, allocationSet);
 
                 foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
@@ -78,7 +73,7 @@ namespace Cottage_Gardens_Analysis
         #endregion
 
 
-
+        #region GetCompositeIndex
         private AllocationIndex GetCompositeIndex(Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet)
         {
             double groupHistoryWeight = 0;
@@ -107,7 +102,9 @@ namespace Cottage_Gardens_Analysis
             }
             return new AllocationIndex(currentIndex, categoryIndex, groupHistoryWeight);
         }
+        #endregion
 
+        #region AllocateYear
         public AllocationIndex AllocateYear(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet)
         {
             if (dnsItemsByStore.Count > 0)
@@ -148,7 +145,9 @@ namespace Cottage_Gardens_Analysis
                 return new AllocationIndex(index, Items.Values, allocationSet);
             }
         }
+        #endregion
 
+        #region 
         public List<Store> GetMostConstrainedStores(int index, Dictionary<Store, DoNotShipItems> dnsItemsByStore, HashSet<Store> allocationSet, Dictionary<Store,double> frozenStores = null)
         {
             if (dnsItemsByStore.Count > 0)
@@ -174,88 +173,36 @@ namespace Cottage_Gardens_Analysis
             }
             return null;
         }
+        #endregion
+
 
         public void InitHistoryAndBenchmark()
         {
-            History  = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
             foreach (Item item in Items.Values)
             {
-                if (item.Benchmark != null && item.TotalQty > 0)
-                {
-                    for (int i = 0; i < Program.HistoryYears.Length; i++)
-                    {
-                        if (item.History[i] != null)
-                        {
-                            foreach (var kvp in item.History[i].Where(x => !x.Value.Ignore))
-                            {
-                                if (History [i] == null)
-                                {
-                                    History [i] = new Dictionary<Store, Metrics>();
-                                }
-                                if (!History [i].ContainsKey(kvp.Key))
-                                {
-                                    History [i][kvp.Key] = new Metrics(kvp.Value);
-                                }
-                                else
-                                {
-                                    History[i][kvp.Key].Add(kvp.Value);
-                                }
-                            }
-                        }
-                    }
-
-                    foreach (var kvp in item.Benchmark.Where(x => !x.Value.Ignore))
-                    {
-                        if (Benchmark == null)
-                        {
-                            Benchmark = new Dictionary<Store, Metrics>();
-                        }
-                        if (!Benchmark.ContainsKey(kvp.Key))
-                        {
-                            Benchmark[kvp.Key] = new Metrics(kvp.Value);
-                        }
-                        else
-                        {
-                            Benchmark[kvp.Key].Add(kvp.Value);
-                        }
-                    }
-
-                }
+                AddBenchmark(item.Benchmark);
+                AddHistory(item.History);
             }
         }
 
         public void InitAllocation()
         {
-            Allocations = new Dictionary<Store, Allocation>();
             foreach (Item item in Items.Values)
             {
-                if (item.Allocations != null)
-                {
-                    foreach (var kvp in item.Allocations)
-                    {
-                        if (!Allocations.ContainsKey(kvp.Key))
-                        {
-                            Allocations[kvp.Key] = new Allocation(kvp.Value);
-                        }
-                        else
-                        {
-                            Allocations[kvp.Key].Add(kvp.Value);
-                        }
-                    }
-                }
+                AddAllocations(item.Allocations);
             }
         }
 
 
-        public static string GroupHeader
+        public static string Header
         {
             get
             {
-                return ",Group, Category";
+                return ",Cottage Gardens Inc.,Group, Category";
             }
         }
 
-        public string GroupDetail
+        public string Detail
         {
             get
             {
@@ -268,13 +215,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public static string AllocationHeader
-        {
-            get
-            {
-                return ",Suggested Allocation Units, Suggested Allocation Dollars";
-            }
-        }
+
 
         public void Output()
         {
@@ -284,9 +225,9 @@ namespace Cottage_Gardens_Analysis
                 foreach (var kvp in Benchmark)
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append(kvp.Key.StoreDetail);
-                    sb.Append(GroupDetail);
-                    sb.Append(kvp.Value.GroupBenchmarkDetail);
+                    sb.Append(kvp.Key.Detail);
+                    sb.Append(Detail);
+                    sb.Append(kvp.Value.BenchmarkDetailLong);
                     if (Allocations != null && Allocations.TryGetValue(kvp.Key, out var allocation))
                     {
                         sb.Append(",");
@@ -312,7 +253,7 @@ namespace Cottage_Gardens_Analysis
                             }
                         }
                     }
-                    Program.OutputGroupAllocation(sb.ToString());
+                    Program.OutputLine(Program.OutputTypes.GroupStore, sb.ToString());
                 }
             }
         }

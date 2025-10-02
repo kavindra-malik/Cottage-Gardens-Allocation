@@ -17,57 +17,103 @@ namespace Cottage_Gardens_Analysis
 
         public Aggregate() 
         {
-            History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
-            Benchmark = new Dictionary<Store, Metrics>();
-            Allocations = new Dictionary<Store, Allocation>();
         }
 
-        public void AddBenchmark(IEnumerable<KeyValuePair<Store, Metrics>> benchmark)
+        public void AddBenchmark(Dictionary<Store, Metrics> benchmark)
         {
-            foreach (var kvp in benchmark.Where(x => !x.Value.Ignore))
+            if (Benchmark == null)
             {
-                if (Benchmark == null)
-                {
-                    Benchmark = new Dictionary<Store, Metrics>();
-                }
-                if (!Benchmark.ContainsKey(kvp.Key))
-                {
-                    Benchmark[kvp.Key] = new Metrics(kvp.Value);
-                }
-                else
-                {
-                    Benchmark[kvp.Key].Add(kvp.Value);
-                }
+                Benchmark = new Dictionary<Store, Metrics>();
             }
-        }
-
-        public void AddHistory(IEnumerable<KeyValuePair<Store, Metrics>>[] history)
-        {
-            for (int i = 0; i < Program.HistoryYears.Length; i++)
+            if (RankBenchmark == null)
+            { 
+                RankBenchmark = new Dictionary<string, Metrics>();
+            }
+            if (benchmark != null)
             {
-                if (history[i] != null)
+                foreach (var kvp in benchmark.Where(x => !x.Value.Ignore))
                 {
-                    foreach (var kvp in history[i].Where(x => !x.Value.Ignore))
+                    if (!Benchmark.ContainsKey(kvp.Key))
                     {
-                        if (History[i] == null)
+                        Benchmark[kvp.Key] = new Metrics(kvp.Value);
+                    }
+                    else
+                    {
+                        Benchmark[kvp.Key].Add(kvp.Value);
+                    }
+                    if (!string.IsNullOrWhiteSpace(kvp.Key.Rank))
+                    {
+                        if (!RankBenchmark.ContainsKey(kvp.Key.Rank))
                         {
-                            History[i] = new Dictionary<Store, Metrics>();
-                        }
-                        if (!History[i].ContainsKey(kvp.Key))
-                        {
-                            History[i][kvp.Key] = new Metrics(kvp.Value);
+                            RankBenchmark[kvp.Key.Rank] = new Metrics(kvp.Value);
                         }
                         else
                         {
-                            History[i][kvp.Key].Add(kvp.Value);
+                            RankBenchmark[kvp.Key.Rank].Add(kvp.Value);
                         }
                     }
                 }
             }
         }
 
-        public void AddAllocations(IEnumerable<KeyValuePair<Store, Allocation>> allocations)
+        public void AddHistory(Dictionary<Store, Metrics>[] history)
         {
+            if (History == null)
+            {
+                History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
+            }
+            if (RankHistory == null)
+            { 
+                RankHistory = new Dictionary<string, Metrics>[Program.HistoryYears.Length];
+            }
+            if (history != null)
+            {
+                for (int i = 0; i < Program.HistoryYears.Length; i++)
+                {
+                    if (history[i] != null)
+                    {
+                        foreach (var kvp in history[i].Where(x => !x.Value.Ignore))
+                        {
+                            if (History[i] == null)
+                            {
+                                History[i] = new Dictionary<Store, Metrics>();
+                            }
+                            if (!History[i].ContainsKey(kvp.Key))
+                            {
+                                History[i][kvp.Key] = new Metrics(kvp.Value);
+                            }
+                            else
+                            {
+                                History[i][kvp.Key].Add(kvp.Value);
+                            }
+                            if (!string.IsNullOrWhiteSpace(kvp.Key.Rank))
+                            {
+                                if (RankHistory[i] == null)
+                                {
+                                    RankHistory[i] = new Dictionary<string, Metrics>();
+                                }
+                                if (!RankHistory[i].ContainsKey(kvp.Key.Rank))
+                                {
+                                    RankHistory[i][kvp.Key.Rank] = new Metrics(kvp.Value);
+                                }
+                                else
+                                {
+                                    RankHistory[i][kvp.Key.Rank].Add(kvp.Value);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void AddAllocations(Dictionary<Store, Allocation> allocations)
+        {
+            if (Allocations == null || RankAllocations == null)
+            {
+                Allocations = new Dictionary<Store, Allocation>();
+                RankAllocations = new Dictionary<string, Allocation>();
+            }
             if (allocations != null)
             {
                 foreach (var kvp in allocations)
@@ -79,6 +125,17 @@ namespace Cottage_Gardens_Analysis
                     else
                     {
                         Allocations[kvp.Key].Add(kvp.Value);
+                    }
+                    if (!string.IsNullOrWhiteSpace(kvp.Key.Rank))
+                    {
+                        if (!RankAllocations.ContainsKey(kvp.Key.Rank))
+                        {
+                            RankAllocations[kvp.Key.Rank] = new Allocation(kvp.Value);
+                        }
+                        else
+                        {
+                            RankAllocations[kvp.Key.Rank].Add(kvp.Value);
+                        }
                     }
                 }
             }

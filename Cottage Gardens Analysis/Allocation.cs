@@ -29,5 +29,29 @@ namespace Cottage_Gardens_Analysis
             this.Qty += other.Qty;
             this.Dollars += other.Dollars;
         }
+
+        public static string Header
+        {
+            get
+            {
+                return ",Suggested Allocation Units, Suggested Allocation Dollars";
+            }
+        }
+
+        public string Detail
+        {
+            get
+            {
+                return "," + Qty + "," + Dollars;
+            }
+        }
+
+        public static string NullDetail
+        {
+            get
+            {
+                return ",,";
+            }
+        }
     }
 }

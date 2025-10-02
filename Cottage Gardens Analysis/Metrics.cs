@@ -92,77 +92,21 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public static string HistoryHeader
+        public static string HistoryHeader(string prefix = null)
         {
-            get
-            {
                 StringBuilder sb = new StringBuilder();
                 for (int year = 0; year < Program.HistoryYears.Length; year++)
                 {
                     sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Dollar Delivered");
+                    sb.Append(Program.HistoryYears[year] + (prefix == null? " - Dollar Delivered" : " - " + prefix + ": Dollar Delivered"));
                     sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Dollar Sold");
+                    sb.Append(Program.HistoryYears[year] + (prefix == null ? " - Dollar Sold" : " - " + prefix + ": Dollar Sold"));
+                sb.Append(',');
+                    sb.Append(Program.HistoryYears[year] + (prefix == null ? " - Dollar SellThru %" : " - " + prefix + ": Dollar SellThru %")); 
                     sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Dollar SellThru %");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Unit SellThru %");
-                }
-                for (int year = 0; year < Program.HistoryYears.Length; year++)
-                {
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Delivered");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Sold");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Dollar SellThru %");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Unit SellThru %");
-                }
-                for (int year = 0; year < Program.HistoryYears.Length; year++)
-                {
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Category Dollar Delivered");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Category Dollar Sold");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Category Dollar SellThru %");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Category Unit SellThru %");
-                }
-                return sb.ToString();
+                    sb.Append(Program.HistoryYears[year] + (prefix == null ? " - Unit SellThru %" : " - " + prefix + ": Unit SellThru %"));
             }
-        }
-
-        public static string GroupHistoryHeader
-        {
-            get
-            {
-                StringBuilder sb = new StringBuilder();
-                for (int year = 0; year < Program.HistoryYears.Length; year++)
-                {
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Dollar Delivered");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Dollar Sold");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Dollar SellThru %");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Unit SellThru %");
-                }
-                for (int year = 0; year < Program.HistoryYears.Length; year++)
-                {
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Delivered");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Dollar Sold");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Dollar SellThru %");
-                    sb.Append(',');
-                    sb.Append(Program.HistoryYears[year] + " - Group Unit SellThru %");
-                }
                 return sb.ToString();
-            }
         }
 
         public string HistoryDetail
@@ -192,7 +136,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public static string BenchmarkHeader
+        public static string BenchmarkHeaderLong
         {
             get
             {
@@ -201,7 +145,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public static string GroupBenchmarkHeader
+        public static string BenchmarkHeaderShort
         {
             get
             {
@@ -210,7 +154,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public string BenchmarkDetail
+        public string BenchmarkDetailShort
         {
             get
             {
@@ -245,7 +189,7 @@ namespace Cottage_Gardens_Analysis
         }
 
 
-        public static string NullBenchmarkDetail
+        public static string NullBenchmarkDetailShort
         {
             get
             {
@@ -254,7 +198,7 @@ namespace Cottage_Gardens_Analysis
         }
 
 
-        public string GroupBenchmarkDetail
+        public string BenchmarkDetailLong
         {
             get
             {
@@ -285,7 +229,7 @@ namespace Cottage_Gardens_Analysis
             }
         }
 
-        public static string GroupNullBenchmarkDetail
+        public static string NullBenchmarkDetailLong
         {
             get
             {
