@@ -17,6 +17,8 @@ namespace Cottage_Gardens_Analysis
 
         public Aggregate() 
         {
+            Allocations = new Dictionary<Store, Allocation>();
+            RankAllocations = new Dictionary<string, Allocation>();
         }
 
         public void AddBenchmark(Dictionary<Store, Metrics> benchmark)

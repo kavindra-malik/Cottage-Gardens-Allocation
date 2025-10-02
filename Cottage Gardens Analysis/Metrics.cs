@@ -72,7 +72,7 @@ namespace Cottage_Gardens_Analysis
                 {
                     Debug.WriteLine("Look : DollarDelivered = " + DollarDelivered + "DollarSold = " + DollarSold);
                 }
-                return (DollarDelivered + DollarSold) / 2000;
+                return (DollarSold) / 3000;
             }
         }
 
@@ -181,21 +181,11 @@ namespace Cottage_Gardens_Analysis
                 sb.Append(UnitSellThruPercent);
                 sb.Append("%");
 
-                sb.Append(',');
-                sb.Append(Ignore);
-
                 return sb.ToString();
             }
         }
 
 
-        public static string NullBenchmarkDetailShort
-        {
-            get
-            {
-                return ",,,,,,,,";
-            }
-        }
 
 
         public string BenchmarkDetailLong
@@ -225,15 +215,27 @@ namespace Cottage_Gardens_Analysis
                 sb.Append(UnitSellThruPercent);
                 sb.Append("%");
 
+                sb.Append(',');
+                sb.Append(Ignore);
+
                 return sb.ToString();
             }
         }
+
+        public static string NullBenchmarkDetailShort 
+        {
+            get
+            {
+                return ",,,,,,,";
+            }
+        }
+
 
         public static string NullBenchmarkDetailLong
         {
             get
             {
-                return ",,,,,,,";
+                return ",,,,,,,,";
             }
         }
     }

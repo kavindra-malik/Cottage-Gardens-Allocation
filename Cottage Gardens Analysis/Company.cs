@@ -67,7 +67,7 @@ namespace Cottage_Gardens_Analysis
                 case OutputTypes.CompanyStore:
                     if (Benchmark != null)
                     {
-                        foreach (var kvp in Benchmark)
+                        foreach (var kvp in Benchmark.OrderBy(x => x.Key.Nbr))
                         {
                             StringBuilder sb = new StringBuilder();
                             sb.Append(kvp.Key.Detail);
@@ -102,7 +102,7 @@ namespace Cottage_Gardens_Analysis
                 case OutputTypes.CompanyRank:
                     if (RankBenchmark != null)
                     {
-                        foreach (var kvp in RankBenchmark)
+                        foreach (var kvp in RankBenchmark.OrderBy(x => x.Key))
                         {
                             StringBuilder sb = new StringBuilder();
                             sb.Append(kvp.Key);
@@ -164,9 +164,10 @@ namespace Cottage_Gardens_Analysis
                     }
                     break;
                 case OutputTypes.CompanyStore:
-
+                    Output(outputType);
                     break;
                 case OutputTypes.CompanyRank:
+                    Output(outputType);
                     break;
             }
         }

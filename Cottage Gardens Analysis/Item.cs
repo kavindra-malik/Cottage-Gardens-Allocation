@@ -97,6 +97,7 @@ namespace Cottage_Gardens_Analysis
 
         public void Allocate(AllocationIndex index)
         {
+            Allocations = new Dictionary<Store, Allocation>();
             if (Nbr == "13HEM3SDO")
             {
                 Debug.WriteLine("Stop");

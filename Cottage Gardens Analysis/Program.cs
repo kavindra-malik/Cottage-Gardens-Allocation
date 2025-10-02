@@ -28,8 +28,9 @@ namespace Cottage_Gardens_Analysis
 
         public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
 
-        public const string outputPath = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
-        
+        public const string outputPath = @"C:\Users\TEST\Documents\Cottage Gardens";
+            //@"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
+
 
         public enum SpecLevel { Category, Genus, GenusSize, Group, Item }
         public enum OutputTypes { CompanyStore, CompanyRank, CategoryStore, CategoryRank, GroupStore, GroupRank, ItemStore, ItemRank }
@@ -41,11 +42,13 @@ namespace Cottage_Gardens_Analysis
         public static Dictionary<string, GenusSize> GenusSizes = new Dictionary<string, GenusSize>();
         public static Dictionary<string, Group> Groups = new Dictionary<string, Group>();
         public static Dictionary<string, Item> Items = new Dictionary<string, Item>();
-        public static Company Company = new Company("Cottage Gardens, Inc.");
+        public static Company Company = new Company("Cottage Gardens");
 
+        /*
         public static Dictionary<Store, Metrics>[] History { get; set; }
         public static Dictionary<Store, Metrics> Benchmark { get; set; }
         public static Dictionary<Store, Allocation> Allocations { get; set; }
+        */
 
         public static Dictionary<string, Metrics>[] RankHistory { get; set; }
         public static Dictionary<string, Metrics> RankBenchmark { get; set; }
@@ -92,6 +95,8 @@ namespace Cottage_Gardens_Analysis
             Company.ProcessOutput(OutputTypes.GroupStore);
             Company.ProcessOutput(OutputTypes.CompanyStore);
             Company.ProcessOutput(OutputTypes.CompanyRank);
+//            Company.ProcessOutput(OutputTypes.CategoryRank);
+ //           Company.ProcessOutput(OutputTypes.CategoryStore);
         }
 
         #region InitOutputFileNames
@@ -734,7 +739,8 @@ namespace Cottage_Gardens_Analysis
 
         #endregion
 
-        #region InitAllocation
+        /*
+        #region InitHistory
         public static void InitHistory()
         {
             if (History == null)
@@ -809,7 +815,7 @@ namespace Cottage_Gardens_Analysis
         }
 
         #endregion
-
+        */
 
     }
 
