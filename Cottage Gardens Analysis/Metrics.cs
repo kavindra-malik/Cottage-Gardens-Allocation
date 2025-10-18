@@ -68,11 +68,7 @@ namespace Cottage_Gardens_Analysis
         {
             get
             {
-                if (DollarDelivered + DollarSold > 50000)
-                {
-                    Debug.WriteLine("Look : DollarDelivered = " + DollarDelivered + "DollarSold = " + DollarSold);
-                }
-                return (DollarSold) / 3000;
+                return DollarDelivered + DollarSold > 0 ? DollarDelivered + DollarSold : 0;
             }
         }
 
