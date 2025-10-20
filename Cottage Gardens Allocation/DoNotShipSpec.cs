@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Cottage_Gardens_Analysis.Program;
+using static Cottage_Gardens_Allocation.Program;
 
-namespace Cottage_Gardens_Analysis
+namespace Cottage_Gardens_Allocation
 {
     public class DoNotShipSpec
     {

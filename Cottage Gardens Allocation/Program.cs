@@ -13,7 +13,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Cottage_Gardens_Analysis
+namespace Cottage_Gardens_Allocation
 {
     public static class Program
     {

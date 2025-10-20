@@ -5,7 +5,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cottage_Gardens_Analysis
+namespace Cottage_Gardens_Allocation
 {
     public class StoreResidual : IComparable<StoreResidual>
     {
