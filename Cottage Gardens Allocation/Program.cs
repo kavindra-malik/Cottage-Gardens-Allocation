@@ -12,6 +12,9 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices.ComTypes;
+using Excel = Microsoft.Office.Interop.Excel;
+
 
 namespace Cottage_Gardens_Allocation
 {
@@ -24,14 +27,14 @@ namespace Cottage_Gardens_Allocation
         public const string storeListDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
         public const string itemMaster = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Item Master.csv";
         public const string Dns = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Do Not Ship List.csv";
-
+        public const string 
 
         public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
 
         public const string outputPath = @"C:\Users\TEST\Documents\Cottage Gardens";
-            //@"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
+        //@"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
 
-
+        public enum OutputWorksheetType { Summary, Detail, Status };
         public enum SpecLevel { Category, Genus, GenusSize, Group, Item }
         public enum OutputTypes { CompanyStore, CompanyRank, CategoryStore, CategoryRank, GroupStore, GroupRank, ItemStore, ItemRank }
         public static Dictionary<OutputTypes, string> OutputFileNames { get; set; }
@@ -816,6 +819,93 @@ namespace Cottage_Gardens_Allocation
 
         #endregion
         */
+
+        #region
+
+        static void PopulateExcelOutput()
+        {
+            Excel.Application app = new Microsoft.Office.Interop.Excel.Application();
+            try
+            {
+                foreach (OutputWorksheetType ows in Enum.GetValues(typeof(OutputWorksheetType)))
+                {
+                    string sheetName = string.Empty;
+                    switch (ows)
+                    {
+                        case OutputWorksheetType.Summary:
+                            sheetName = "Output - Summary";
+                            break;
+                        case OutputWorksheetType.Detail:
+                            sheetName = "Output - Detail";
+                            break;
+                        case OutputWorksheetType.Status:
+                            sheetName = "Output - Status";
+                            break;
+                    }
+                    PopulateExcelSheet(app, sheetName, StaticDefs.OutputArray(ows));
+                }
+            }
+            finally
+            {
+                app.Quit();
+                NAR(app);
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+
+        static void PopulateExcelSheet(Excel.Application app, string sheetName, object[,] data)
+        {
+            // PFM 2009-08-27: Error if workbook is open
+            try
+            {
+                File.Open(StaticDefs.DataFile, FileMode.Open, FileAccess.Write, FileShare.None).Dispose();
+            }
+            catch (IOException)
+            {
+                throw new Exception("VERA can only open the Workbook in READ ONLY mode while it is open." +
+                    "\nYou can use the Continue button." +
+                    "\nPlease close the open workbook: " + StaticDefs.DataFile +
+                    "\nYou can then Run VERA again on the CLOSED workbook.");
+            }
+            // PFM 2009-08-27: End of code change
+
+            Excel.Workbook myWorkbook = app.Workbooks.Open(StaticDefs.DataFile, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing,
+                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing);
+
+            Excel.Worksheet ws = myWorkbook.Worksheets.get_Item(sheetName) as Excel.Worksheet;
+            ws.Cells.ClearContents();
+            Excel.Range myRange = ws.get_Range("A1", System.Type.Missing).get_Resize(data.GetLength(0), data.GetLength(1));
+            myRange.Value2 = data;
+
+            app.DisplayAlerts = false;
+            myWorkbook.Save();
+            myWorkbook.Close(false, false, Type.Missing);
+
+            // Necessary so that the COM objects are properly released and available for GC
+            NAR(myRange);
+            NAR(ws);
+            NAR(myWorkbook);
+        }
+
+        public static void NAR(object o)
+        {
+            try
+            {
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(o);
+            }
+            catch { }
+            finally
+            {
+                o = null;
+            }
+        }
+
+
+        #endregion
 
     }
 
