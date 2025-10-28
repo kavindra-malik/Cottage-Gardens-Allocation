@@ -14,13 +14,13 @@ namespace Cottage_Gardens_Allocation
         public string City { get; set; }
         public string State { get; set; }
         public int Market { get; set; }
-        public string Group { get; set; }
+        public string Region { get; set; }
         public string Buyer { get; set; }
         public string Rank { get; set; }
         public byte WeatherZone { get; set; }
 
 
-        public Store(int nbr, int market, string name = null, string city = null, string state = null, string group = null, string buyer = null, string rank = null, byte weatherZone = 3) 
+        public Store(int nbr, int market, string name = null, string city = null, string state = null, string region = null, string buyer = null, string rank = null, byte weatherZone = 3) 
         {
             Account = "Home Depot";
             Nbr = nbr;
@@ -28,7 +28,7 @@ namespace Cottage_Gardens_Allocation
             Name = name;
             City = city;
             State = state;
-            Group = group;
+            Region = region;
             Buyer = buyer;
             Rank = rank;
             WeatherZone = weatherZone;

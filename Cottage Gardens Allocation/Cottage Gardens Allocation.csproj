@@ -67,6 +67,7 @@
     <Compile Include="Allocation.cs" />
     <Compile Include="Category.cs" />
     <Compile Include="Company.cs" />
+    <Compile Include="Dashboard.cs" />
     <Compile Include="DoNotShipItems.cs" />
     <Compile Include="DoNotShipSpec.cs" />
     <Compile Include="Genus.cs" />

@@ -14,6 +14,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices.ComTypes;
 using Excel = Microsoft.Office.Interop.Excel;
+using Microsoft.Office.Interop.Excel;
+using System.Runtime.InteropServices;
 
 
 namespace Cottage_Gardens_Allocation
@@ -21,20 +23,20 @@ namespace Cottage_Gardens_Allocation
     public static class Program
     {
         public const string env = "test"; // "kavin"; 
-
+        
 
         public const string storeRankingDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\2025 Home Depot Store Ranking.csv";
         public const string storeListDataFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\HD store list.csv";
         public const string itemMaster = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Item Master.csv";
         public const string Dns = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Do Not Ship List.csv";
-        public const string 
+        public const string OutputFile = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Allocation.xlsx";
 
         public const string springSalesFileStem = @"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Spring Sales History ";
 
         public const string outputPath = @"C:\Users\TEST\Documents\Cottage Gardens";
         //@"C:\Users\" + env + @"\OneDrive - Intellection LLC\Current Clients\Cottage Gardens\Data\Output";
 
-        public enum OutputWorksheetType { Summary, Detail, Status };
+        public enum OutputType { Dashboard, StoreComparison };
         public enum SpecLevel { Category, Genus, GenusSize, Group, Item }
         public enum OutputTypes { CompanyStore, CompanyRank, CategoryStore, CategoryRank, GroupStore, GroupRank, ItemStore, ItemRank }
         public static Dictionary<OutputTypes, string> OutputFileNames { get; set; }
@@ -57,14 +59,18 @@ namespace Cottage_Gardens_Allocation
         public static Dictionary<string, Metrics> RankBenchmark { get; set; }
         public static Dictionary<string, Allocation> RankAllocations { get; set; }
         public static string[] Ranks { get; set; }
+        public static string[] Regions { get; set; }
+        public static string[] Buyers { get; set; }
+
+
 
 
         public static Dictionary<string, Dictionary<string, HashSet<int>>> DNS = new Dictionary<string, Dictionary<string, HashSet<int>>>();
         // Dictionary key is to be tested as initial substring in the item number
         public static Dictionary<string, HashSet<int>> CategoryDNS = new Dictionary<string, HashSet<int>>();
 
-        public static int[] HistoryYears = new int[] { 2024, 2023,2022 };
-        public static int BenchmarkYear = 2025;
+        public static int[] HistoryYears = new int[] { 2025, 2024, 2023 };
+
 
         public static StreamWriter itemStream { get; set; }
 
@@ -79,7 +85,6 @@ namespace Cottage_Gardens_Allocation
             {
                 ReadSales(HistoryYears[i], i);
             }
-            ReadSales(BenchmarkYear);
 
             foreach (string fileName in OutputFileNames.Values)
             if (File.Exists(fileName))
@@ -87,19 +92,12 @@ namespace Cottage_Gardens_Allocation
                 File.Delete(fileName);
             }
             
-            Company.InitHistoryAndBenchmark();
-            foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
+            Company.InitHistory();
+            foreach (Group group in Groups.Values)
             {
                 group.AllocateGroupItems();
             }
             Company.InitAllocations();
-
-            Company.ProcessOutput(OutputTypes.ItemStore);
-            Company.ProcessOutput(OutputTypes.GroupStore);
-            Company.ProcessOutput(OutputTypes.CompanyStore);
-            Company.ProcessOutput(OutputTypes.CompanyRank);
-//            Company.ProcessOutput(OutputTypes.CategoryRank);
- //           Company.ProcessOutput(OutputTypes.CategoryStore);
         }
 
         #region InitOutputFileNames
@@ -137,87 +135,6 @@ namespace Cottage_Gardens_Allocation
                         break;
                 }
             }
-        }
-        #endregion
-
-        #region OutputHeader
-        public static void OutputHeader(OutputTypes outputType)
-        {
-            StringBuilder sb = new StringBuilder();
-            switch (outputType)
-            {
-                case OutputTypes.ItemStore:
-                    sb.Append(Store.Header);
-                    sb.Append(Item.ItemHeader);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-                    sb.Append(Metrics.HistoryHeader("GROUP"));
-                    sb.Append(Metrics.HistoryHeader("CATEGORY"));
-                    break;
-                case OutputTypes.ItemRank:
-                    sb.Append("Rank");
-                    sb.Append(Item.ItemHeader);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-                    sb.Append(Metrics.HistoryHeader("GROUP"));
-                    sb.Append(Metrics.HistoryHeader("CATEGORY"));
-                    break;
-
-                case OutputTypes.GroupStore:
-                    sb.Append(Store.Header);
-                    sb.Append(Group.Header);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-
-                    break;
-                case OutputTypes.GroupRank:
-                    sb.Append("Rank");
-                    sb.Append(Group.Header);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-
-                    break;
-
-                case OutputTypes.CategoryStore:
-                    sb.Append(Store.Header);
-                    sb.Append(Category.Header);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-
-                    break;
-                case OutputTypes.CategoryRank:
-                    sb.Append("Rank");
-                    sb.Append(Category.Header);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-
-
-                    break;
-
-                case OutputTypes.CompanyStore:
-                    sb.Append(Store.Header);
-                    sb.Append(Company.Header);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-
-                    break;
-                case OutputTypes.CompanyRank:
-                    sb.Append("Rank");
-                    sb.Append(Company.Header);
-                    sb.Append(Metrics.BenchmarkHeaderShort);
-                    sb.Append(Allocation.Header);
-                    sb.Append(Metrics.HistoryHeader());
-
-                    break;
-            }
-            OutputLine(outputType, sb.ToString());
         }
         #endregion
 
@@ -270,6 +187,9 @@ namespace Cottage_Gardens_Allocation
         #region UpdateStoreGroupAndBuyer
         static void UpdateStoreGroupAndBuyer()
         {
+            HashSet<string> regions = new HashSet<string>();
+            HashSet<string> buyers = new HashSet<string>();
+
             int needUpdatingCount = Stores.Count;
             using (TextFieldParser csvParser = new TextFieldParser(storeListDataFile))
             {
@@ -298,13 +218,16 @@ namespace Cottage_Gardens_Allocation
                             throw new Exception("Non-integer store nbr");
                         }
                     }
-                    string group = fields[3].Trim();
+                    string region = fields[3].Trim();
                     string buyer = fields[4].Trim();
                     if (Stores.TryGetValue(storeNbr, out var store))
                     {
                         store.Market = market;
+                        store.Region = region;
                         store.Buyer = buyer;
                         needUpdatingCount--;
+                        buyers.Add(buyer);
+                        regions.Add(region);
                     }
                     else
                     {
@@ -312,6 +235,8 @@ namespace Cottage_Gardens_Allocation
                     }
                 }
             }
+            Regions = (from x in regions orderby x select x).ToArray<string>();
+            Buyers = (from x in buyers orderby x select x).ToArray<string>();
             if (needUpdatingCount > 0)
             {
                 throw new Exception("Did not find " + needUpdatingCount + " in store list data");
@@ -544,7 +469,7 @@ namespace Cottage_Gardens_Allocation
         #endregion
 
         #region ReadSales
-        static void ReadSales(int year, int? historyIndex = null)
+        static void ReadSales(int year, int historyIndex)
         {
             int rejectedCount = 0;
             HashSet<string> rejectedItems = new HashSet<string>();
@@ -628,34 +553,19 @@ namespace Cottage_Gardens_Allocation
                             throw new Exception("Line Nbr: " + lineNbr + ", $ Sold Retail " + fields[13] + " could not be parsed.");
                         }
 
-                        if (historyIndex.HasValue)
+                        if (item.DoNotShip == null || !item.DoNotShip.Contains(store))
                         {
-                            if (item.DoNotShip == null || !item.DoNotShip.Contains(store))
+                            if (item.History[historyIndex] == null)
                             {
-                                if (item.History[historyIndex.Value] == null)
-                                {
-                                    item.History[historyIndex.Value] = new Dictionary<Store, Metrics>();
-                                }
-                                item.History[historyIndex.Value].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
-                                item.Group.HasHistory[historyIndex.Value] = true;
-                                item.Group.Cat.HasHistory[historyIndex.Value] = true;
+                                item.History[historyIndex] = new Dictionary<Store, Metrics>();
                             }
-                            else
-                            {
-                                rejectedDns++;
-                            }
+                            item.History[historyIndex].Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
+                            item.Group.HasHistory[historyIndex] = true;
+                            item.Group.Cat.HasHistory[historyIndex] = true;
                         }
                         else
                         {
-                            if (item.Benchmark == null)
-                            {
-                                item.Benchmark = new Dictionary<Store, Metrics>();
-                            }
-                            item.Benchmark.Add(store, new Metrics(qtyDelivered, qtySold, dollarsDelivered, dollarsSold, dollarsDeliveredRetail, dollarsSoldRetail));
-                            if (!((qtyDelivered >= 20 && qtySold == 0) || qtyDelivered == 0))
-                            {
-                                item.Group.HasBenchmark = true;
-                            }
+                            rejectedDns++;
                         }
                     }
                 }
@@ -742,107 +652,27 @@ namespace Cottage_Gardens_Allocation
 
         #endregion
 
-        /*
-        #region InitHistory
-        public static void InitHistory()
-        {
-            if (History == null)
-            {
-                History = new Dictionary<Store, Metrics>[Program.HistoryYears.Length];
-                foreach (Category cat in Categories.Values)
-                {
-                    if (cat.History != null)
-                    {
-                        for (int i = 0; i < Program.HistoryYears.Length; i++)
-                        {
-                            if (cat.History[i] != null)
-                            {
-                                foreach (var kvp in cat.History[i])
-                                {
-                                    if (History[i] == null)
-                                    {
-                                        History[i] = new Dictionary<Store, Metrics>();
-                                    }
-                                    if (!History[i].ContainsKey(kvp.Key))
-                                    {
-                                        History[i][kvp.Key] = new Metrics(kvp.Value);
-                                    }
-                                    else
-                                    {
-                                        History[i][kvp.Key].Add(kvp.Value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            RankHistory = new Dictionary<string, Metrics>[Program.HistoryYears.Length];
-        }
-        #endregion
-
-        #region InitAllocation
-        public static void InitAllocation()
-        {
-            Allocations = new Dictionary<Store, Allocation>();
-            foreach (Category cat in Categories.Values)
-            {
-                if (cat.Allocations != null)
-                {
-                    foreach (var kvp in cat.Allocations)
-                    {
-                        if (!Allocations.ContainsKey(kvp.Key))
-                        {
-                            Allocations[kvp.Key] = new Allocation(kvp.Value);
-                        }
-                        else
-                        {
-                            Allocations[kvp.Key].Add(kvp.Value);
-                        }
-                    }
-                }
-            }
-            RankAllocations = new Dictionary<string, Allocation>();
-            foreach (var kvp in Allocations)
-            {
-                if (!RankAllocations.TryGetValue(kvp.Key.Rank, out var allocation))
-                {
-                    RankAllocations[kvp.Key.Rank] = new Allocation(kvp.Value);
-                }
-                else
-                {
-                    RankAllocations[kvp.Key.Rank].Add(kvp.Value);
-                }
-            }
-        }
-
-        #endregion
-        */
 
         #region
 
-        static void PopulateExcelOutput()
+        static void PopulateExcelOutput(OutputType outputType, object[,] data)
         {
             Excel.Application app = new Microsoft.Office.Interop.Excel.Application();
             try
             {
-                foreach (OutputWorksheetType ows in Enum.GetValues(typeof(OutputWorksheetType)))
+                foreach (OutputType ows in Enum.GetValues(typeof(OutputType)))
                 {
                     string sheetName = string.Empty;
                     switch (ows)
                     {
-                        case OutputWorksheetType.Summary:
-                            sheetName = "Output - Summary";
+                        case OutputType.Dashboard:
+                            sheetName = "Dashboard";
                             break;
-                        case OutputWorksheetType.Detail:
-                            sheetName = "Output - Detail";
-                            break;
-                        case OutputWorksheetType.Status:
-                            sheetName = "Output - Status";
+                        case OutputType.StoreComparison:
+                            sheetName = "Store Comparison";
                             break;
                     }
-                    PopulateExcelSheet(app, sheetName, StaticDefs.OutputArray(ows));
+                    PopulateExcelSheet(outputType, app, sheetName, data);
                 }
             }
             finally
@@ -857,28 +687,26 @@ namespace Cottage_Gardens_Allocation
         }
 
 
-        static void PopulateExcelSheet(Excel.Application app, string sheetName, object[,] data)
+        static void PopulateExcelSheet(OutputType outputType, Excel.Application app, string sheetName, object[,] data, int startRow = 1)
         {
             // PFM 2009-08-27: Error if workbook is open
             try
             {
-                File.Open(StaticDefs.DataFile, FileMode.Open, FileAccess.Write, FileShare.None).Dispose();
+                File.Open(OutputFile, FileMode.Open, FileAccess.Write, FileShare.None).Dispose();
             }
             catch (IOException)
             {
-                throw new Exception("VERA can only open the Workbook in READ ONLY mode while it is open." +
+                throw new Exception("The Allocation Tool can only open the Workbook in READ ONLY mode while it is open." +
                     "\nYou can use the Continue button." +
-                    "\nPlease close the open workbook: " + StaticDefs.DataFile +
-                    "\nYou can then Run VERA again on the CLOSED workbook.");
+                    "\nPlease close the open workbook: " + OutputFile +
+                    "\nYou can then run the Allocation Tool again on the CLOSED workbook.");
             }
-            // PFM 2009-08-27: End of code change
 
-            Excel.Workbook myWorkbook = app.Workbooks.Open(StaticDefs.DataFile, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing,
-                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing);
+            Excel.Workbook myWorkbook = app.Workbooks.Open(OutputFile);
 
             Excel.Worksheet ws = myWorkbook.Worksheets.get_Item(sheetName) as Excel.Worksheet;
             ws.Cells.ClearContents();
-            Excel.Range myRange = ws.get_Range("A1", System.Type.Missing).get_Resize(data.GetLength(0), data.GetLength(1));
+            Excel.Range myRange = ws.get_Range("A" + startRow).get_Resize(data.GetLength(0), data.GetLength(1));
             myRange.Value2 = data;
 
             app.DisplayAlerts = false;
@@ -907,6 +735,42 @@ namespace Cottage_Gardens_Allocation
 
         #endregion
 
+        public static int LY
+        {
+            get
+            {
+                return HistoryYears[0];
+            }
+        }
+        public static int LLY
+        {
+            get
+            {
+                return HistoryYears[1];
+            }
+        }
+        public static int LLLY
+        {
+            get
+            {
+                return HistoryYears[2];
+            }
+        }
+        private static int _ty = -1;
+        public static int TY
+        {
+            get
+            {
+                if (_ty < 0)
+                {
+                    DateTime lyStart = new DateTime(LY, 1, 1);
+                    DateTime tyStart = lyStart.AddYears(1);
+                    _ty = tyStart.Year;
+                }
+                return _ty;
+            }
+        }
+           
     }
 
 

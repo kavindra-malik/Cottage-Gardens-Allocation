@@ -18,15 +18,15 @@ namespace Cottage_Gardens_Allocation
             Name = name;
         }
 
-        public void InitHistoryAndBenchmark()
+        public void InitHistory()
         {
             foreach (var category in Program.Categories.Values)
             {
-                foreach (Group group in category.Groups.Values.Where(g => g.HasBenchmark))
+                foreach (Group group in category.Groups.Values.Where(g => g.HasStock))
                 {
-                    group.InitHistoryAndBenchmark();
+                    group.InitHistory();
                 }
-                category.InitHistoryAndBenchmark();
+                category.InitHistory();
                 AddHistory(category.History);
                 AddBenchmark(category.Benchmark);
             }
@@ -36,7 +36,7 @@ namespace Cottage_Gardens_Allocation
         {
             foreach (var category in Program.Categories.Values)
             {
-                foreach (Group group in category.Groups.Values.Where(g => g.HasBenchmark))
+                foreach (Group group in category.Groups.Values.Where(g => g.HasStock))
                 {
                     group.InitAllocation();
                 }
@@ -133,41 +133,6 @@ namespace Cottage_Gardens_Allocation
                             Program.OutputLine(outputType, sb.ToString());
                         }
                     }
-                    break;
-            }
-        }
-
-        public void ProcessOutput(Program.OutputTypes outputType)
-        {
-            OutputHeader(outputType);
-            switch (outputType)
-            {
-                case Program.OutputTypes.ItemStore:
-                    foreach (var category in Program.Categories.Values)
-                    {
-                        foreach (Group group in category.Groups.Values.Where(g => g.HasBenchmark))
-                        {
-                            foreach (Item item in group.Items.Values.Where(i => i.Benchmark != null))
-                            {
-                                item.Output();
-                            }
-                        }
-                    }
-                    break;
-                case OutputTypes.GroupStore:
-                    foreach (var category in Program.Categories.Values)
-                    {
-                        foreach (Group group in category.Groups.Values.Where(g => g.HasBenchmark))
-                        {
-                            group.Output();
-                        }
-                    }
-                    break;
-                case OutputTypes.CompanyStore:
-                    Output(outputType);
-                    break;
-                case OutputTypes.CompanyRank:
-                    Output(outputType);
                     break;
             }
         }

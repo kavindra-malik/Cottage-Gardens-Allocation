@@ -12,8 +12,7 @@ namespace Cottage_Gardens_Allocation
         public Category Cat { get; set; }
         public string Name { get; set; }
         public bool[] HasHistory { get; set; }
-        public bool HasBenchmark { get; set; }
-
+        public bool HasStock { get; set; }
         public Dictionary<string, Item> Items { get; set; }
 
         public Group(Category cat, string name)
@@ -21,7 +20,6 @@ namespace Cottage_Gardens_Allocation
             Cat = cat;
             Name = name;
             HasHistory = new bool[Program.HistoryYears.Length];
-            HasBenchmark = false;
             Items = new Dictionary<string, Item>();
         }
 
@@ -60,7 +58,7 @@ namespace Cottage_Gardens_Allocation
                 }
                 AllocationIndex index = GetCompositeIndex(dnsItemsByStore, allocationSet);
 
-                foreach (var item in Items.Values.Where(x => x.TotalQty > 0 && x.TargetStoreSet.Count > 0))
+                foreach (var item in Items.Values.Where(x => x.AllocatableUnits > 0 && x.TargetStoreSet.Count > 0))
                 {
                     if (index != null)
                     {
@@ -176,11 +174,10 @@ namespace Cottage_Gardens_Allocation
         #endregion
 
 
-        public void InitHistoryAndBenchmark()
+        public void InitHistory()
         {
             foreach (Item item in Items.Values)
             {
-                AddBenchmark(item.Benchmark);
                 AddHistory(item.History);
             }
         }

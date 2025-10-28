@@ -60,18 +60,17 @@ namespace Cottage_Gardens_Allocation
             }
         }
 
-        public void InitHistoryAndBenchmark()
+        public void InitHistory()
         {
-            foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
+            foreach (Group group in Groups.Values.Where(g => g.HasStock))
             {
                 AddHistory(group.History);
-                AddBenchmark(group.Benchmark);
             }
         }
 
         public void InitAllocation()
         {
-            foreach (Group group in Groups.Values.Where(g => g.HasBenchmark))
+            foreach (Group group in Groups.Values.Where(g => g.HasStock))
             {
                 AddAllocations(group.Allocations);
             }
@@ -89,15 +88,6 @@ namespace Cottage_Gardens_Allocation
                 return items;
             }
         }
-
-        public static string Header
-        {
-            get
-            {
-                return ",Cottage Gardens Inc.,Category";
-            }
-        }
-
 
         public bool Equals(Category other)
         {

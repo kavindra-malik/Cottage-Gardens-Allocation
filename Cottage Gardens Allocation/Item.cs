@@ -27,10 +27,14 @@ namespace Cottage_Gardens_Allocation
         public byte Zone { get; set; }
         public int Multiple { get; set; }
         private decimal _RetailPrice;
+
+        public int TotalAvailableUnits { get; set; }
+        public int ReplenishmentUnits { get; set; }
         public Dictionary<Store, Metrics>[] History { get; set; }
-        public Dictionary<Store, Metrics> Benchmark { get; set; }
         public HashSet<Store> DoNotShip { get; set; }
-        public Dictionary<Store, Allocation> Allocations { get; set; }
+        public Dictionary<Store, Allocation> InitialAllocations { get; set; }
+        public Dictionary<Store, Allocation> Replenishments { get; set; }
+
         public bool InsufficientHistory { get; set; }
         public bool[] ValidHistory { get; set; }
         private HashSet<Store> _TargetStoreSet;
@@ -57,6 +61,14 @@ namespace Cottage_Gardens_Allocation
             _RetailPrice = -1;
         }
 
+        public int AllocatableUnits
+        {
+            get
+            {
+                return TotalAvailableUnits - ReplenishmentUnits;
+            }
+        }
+
         public void UpdateDoNotShip(HashSet<Store> doNotShip)
         {
             if (DoNotShip == null)
@@ -73,7 +85,7 @@ namespace Cottage_Gardens_Allocation
                 {
                     var validData = from x in History[i] where TargetStoreSet.Contains(x.Key) && !x.Value.Ignore && x.Value.Valid && (DoNotShip == null || !DoNotShip.Contains(x.Key)) select x;
                     Debug.WriteLine(validData.Count());
-                    ValidHistory[i] = validData.Count() >= 0.75 * Benchmark.Count;
+                    ValidHistory[i] = validData.Count() >= 0.75 * (Program.Stores.Count - DoNotShip.Count);
                 }
             }
         }
@@ -97,16 +109,9 @@ namespace Cottage_Gardens_Allocation
 
         public void Allocate(AllocationIndex index)
         {
-            Allocations = new Dictionary<Store, Allocation>();
-            if (Nbr == "13HEM3SDO")
-            {
-                Debug.WriteLine("Stop");
-                foreach (var kvp in Benchmark)
-                {
-                    Debug.WriteLine(kvp.Key.Nbr + "," + kvp.Value.Ignore + "," + (DoNotShip == null));
-                }
+            InitialAllocations = new Dictionary<Store, Allocation>();
+            Replenishments = new Dictionary<Store, Allocation>();
 
-            }
             AssessHistory();
             if (TargetStoreSet != null && TargetStoreSet.Count > 0)
             {
@@ -119,36 +124,47 @@ namespace Cottage_Gardens_Allocation
                     storeIndex = Program.CombineIndex(itemIndex, storeIndex, itemWeight);
                 }
 
-                // Allocate 
-                Dictionary<Store, int> allocations = new Dictionary<Store, int>();
-                int totalQty = TotalQty;
-                List<StoreResidual> residuals = new List<StoreResidual>();
-                int totalAllocated = 0;
-                foreach (KeyValuePair<Store, double> kvp in storeIndex)
+                // Allocate Initial (allocationType = 0) and Replenishment Units (allocationType = 1)
+                for (int allocationType = 0; allocationType < 2; allocationType++)
                 {
-                    int floor = Multiple * (int)Math.Floor(totalQty * kvp.Value / Multiple);
-                    double residual = totalQty * kvp.Value - floor;
-                    allocations.Add(kvp.Key, floor);
-                    totalAllocated += floor;
-                    residuals.Add(new StoreResidual(kvp.Key, residual));
-                }
-                if (totalAllocated < TotalQty)
-                {
-                    residuals.Sort();
-
-                    for (int i = 0; i < residuals.Count; i++)
+                    Dictionary<Store, int> allocations = new Dictionary<Store, int>();
+                    int totalQty = allocationType == 0 ? AllocatableUnits : ReplenishmentUnits;
+                    List<StoreResidual> residuals = new List<StoreResidual>();
+                    int totalAllocated = 0;
+                    foreach (KeyValuePair<Store, double> kvp in storeIndex)
                     {
-                        allocations[residuals[i].Store] += Multiple;
-                        totalAllocated += Multiple;
-                        if (totalAllocated == totalQty)
+                        int floor = Multiple * (int)Math.Floor(totalQty * kvp.Value / Multiple);
+                        double residual = totalQty * kvp.Value - floor;
+                        allocations.Add(kvp.Key, floor);
+                        totalAllocated += floor;
+                        residuals.Add(new StoreResidual(kvp.Key, residual));
+                    }
+                    if (totalAllocated < totalQty)
+                    {
+                        residuals.Sort();
+
+                        for (int i = 0; i < residuals.Count; i++)
                         {
-                            break;
+                            allocations[residuals[i].Store] += Multiple;
+                            totalAllocated += Multiple;
+                            if (totalAllocated == totalQty)
+                            {
+                                break;
+                            }
                         }
                     }
-                }
-                foreach (var kvp in allocations)
-                {
-                    Allocations.Add(kvp.Key, new Allocation(kvp.Value, Math.Round(RetailPrice * kvp.Value, 2)));
+                    foreach (var kvp in allocations)
+                    {
+                        if (allocationType == 0)
+                        {
+                            InitialAllocations.Add(kvp.Key, new Allocation(kvp.Value, Math.Round(RetailPrice * kvp.Value, 2)));
+                        }
+                        else
+                        {
+                            Replenishments.Add(kvp.Key, new Allocation(kvp.Value, Math.Round(RetailPrice * kvp.Value, 2)));
+
+                        }
+                    }
                 }
 
             }
@@ -200,59 +216,10 @@ namespace Cottage_Gardens_Allocation
             {
                 if (_TargetStoreSet == null)
                 {
-                    _TargetStoreSet = new HashSet<Store>();
-                    if (Benchmark != null)
-                    {
-                        foreach (var kvp in Benchmark)
-                        {
-                            if ((DoNotShip == null || !DoNotShip.Contains(kvp.Key)) && !kvp.Value.Ignore)
-                            {
-                                _TargetStoreSet.Add(kvp.Key);
-                            }
-                        }
-                    }
+                    _TargetStoreSet = new HashSet<Store>(Program.Stores.Values.Except(DoNotShip));
                 }
 
                 return _TargetStoreSet;
-            }
-        }
-
-        public int TotalQty
-        {
-            get
-            {
-                if (_totalQty == null)
-                {
-                    _totalQty = 0;
-                    if (Benchmark != null)
-                    {
-                        foreach (KeyValuePair<Store, Metrics> kvp in Benchmark.Where(x => !x.Value.Ignore))
-                        {
-                            if ((DoNotShip == null || !DoNotShip.Contains(kvp.Key)) && !kvp.Value.Ignore)
-                            {
-                                _totalQty += kvp.Value.QtyDelivered;
-                            }
-                        }
-                        int remainder = _totalQty.Value % Multiple;
-                        if (Math.Abs(remainder) > Multiple / 2.0) // Use 2.0 for float division
-                        {
-                            if (remainder > 0)
-                            {
-                                _totalQty = _totalQty.Value + (Multiple - remainder);
-                            }
-                            else
-                            {
-                                _totalQty = _totalQty.Value - (Multiple + remainder);
-                            }
-                        }
-                        // Otherwise, subtract the remainder to get the lower multiple
-                        else
-                        {
-                            _totalQty = _totalQty.Value - remainder;
-                        }
-                    }
-                }
-                return _totalQty.Value;
             }
         }
 
@@ -289,96 +256,6 @@ namespace Cottage_Gardens_Allocation
             }
         }
 
-
-        public static string AllocationHeader
-        {
-            get
-            {
-                return ", Eligible To Ship, Suggested Allocation Units, Suggested Allocation Dollars";
-            }
-        }
-
-        public string AllocationDetail(Store store, Allocation allocation)
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.Append(",");
-            sb.Append( DoNotShip == null || !DoNotShip.Contains(store));
-            sb.Append(",");
-            sb.Append(allocation.Qty);
-            sb.Append(",");
-            sb.Append(allocation.Dollars);
-            return sb.ToString();
-        }
-
-        public string AllocationDetail()
-        {
-            return ",,,";
-        }
-
-        public void Output()
-        {
-            if (Benchmark != null)
-            {
-                foreach (var kvp in Benchmark)
-                {
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append(kvp.Key.Detail);
-                    sb.Append(ItemDetail);
-                    sb.Append(kvp.Value.BenchmarkDetailShort);
-                    if (Allocations != null && Allocations.TryGetValue(kvp.Key, out var allocatedUnits))
-                    {
-                        sb.Append(AllocationDetail(kvp.Key, allocatedUnits));
-                    }
-                    else
-                    {
-                        sb.Append(AllocationDetail());
-                    }
-                    for (int i = 0; i < Program.HistoryYears.Length; i++)
-                    {
-                        if (History[i] == null)
-                        {
-                            sb.Append(Metrics.NullHistoryDetail);
-                        }
-                        else
-                        {
-                            if (History[i].TryGetValue(kvp.Key, out Metrics metrics))
-                            {
-                                sb.Append(metrics.HistoryDetail);
-                            }
-                        }
-                    }
-                    for (int i = 0; i < Program.HistoryYears.Length; i++)
-                    {
-                        if (Group.History[i] == null)
-                        {
-                            sb.Append(Metrics.NullHistoryDetail);
-                        }
-                        else
-                        {
-                            if (Group.History[i].TryGetValue(kvp.Key, out Metrics metrics))
-                            {
-                                sb.Append(metrics.HistoryDetail);
-                            }
-                        }
-                    }
-                    for (int i = 0; i < Program.HistoryYears.Length; i++)
-                    {
-                        if (Group.Cat.History[i] == null)
-                        {
-                            sb.Append(Metrics.NullHistoryDetail);
-                        }
-                        else
-                        {
-                            if (Group.Cat.History[i].TryGetValue(kvp.Key, out Metrics metrics))
-                            {
-                                sb.Append(metrics.HistoryDetail);
-                            }
-                        }
-                    }
-                    Program.OutputLine(Program.OutputTypes.ItemStore, sb.ToString());
-                }
-            }
-        }
 
         public decimal RetailPrice
         {
